@@ -1,0 +1,14 @@
+Name:                sp
+Version:             0.0
+Description:         Semantic Parser
+License:             GPL
+License-file:        LICENSE
+Author:              Oscar Sjöberg
+Maintainer:          osorbor@gmail.com
+Build-Type:          Simple
+Cabal-Version:       >=1.2
+
+Executable sp
+  Main-is:           SP.hs
+  Build-Depends:     base >= 4
+  hs-source-dirs:    src
