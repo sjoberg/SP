@@ -8,7 +8,12 @@ Maintainer:          osorbor@gmail.com
 Build-Type:          Simple
 Cabal-Version:       >=1.2
 
+library
+  Build-Depends:     base >= 4, mtl, mongoDB, parallel
+  Exposed-Modules:   SP.Cluster, SP.Score
+  HS-Source-Dirs:    src
+
 Executable sp
   Main-is:           SP.hs
-  Build-Depends:     base >= 4
-  hs-source-dirs:    src
+  Build-Depends:     base >= 4, mtl, mongoDB, parallel
+  HS-Source-Dirs:    src
