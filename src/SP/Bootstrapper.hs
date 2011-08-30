@@ -1,138 +1,90 @@
 {-# LANGUAGE OverloadedStrings #-}
 module SP.Bootstrapper (bootstrap) where
 
-import SP.Cluster
-import Database.MongoDB
 import Control.Monad.Trans (liftIO)
+import Data.ByteString.Char8 (ByteString, pack)
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.HashMap.Lazy as M
 import Data.List (elemIndex)
 import Data.Maybe
+import Database.MongoDB
+import SP.Cluster
 
--- Get the news items from Mongo, where cb is the callback function that will
--- be called upon once the initial clustering has been created.
+-- | Get the news items from Mongo, where cb is the callback function that 
+-- | will be called upon once the domain has been created.
 bootstrap cb = do
   pipe <- runIOE $ connect (host "127.0.0.1")
-  e <- access pipe master "articles" (reutersMergers >>= mkArts cb)
+  e <- access pipe master "articles" (reutersMergers >>= mkDomain cb)
   close pipe
   print e
 
--- Find Reuters Mergers news items.
+-- | Find Reuters Mergers news items.
 reutersMergers = rest =<< find (select q "reuters.mergers")
   where 
     q = ["status" =: u"ok", "sentences" =: ["$exists" =: True]]
 
--- Create articles, then supply all articles to the callback function.
-mkArts cb arts = liftIO $ cb [mkArt tks id art | (id, art) <- zip [1..] arts]
+mkDomain cb dArts = liftIO $ cb arts objClrs
   where
-    tks = getTks arts
-
--- Get all tokens from the specified articles.
-getTks :: [Document] -> [Document]
-getTks arts = concatMap tks $ getSnts arts
+    arts = zipWith mkArt (take 1 dArts) [1..]
+    parts = concatMap sParts $ concatMap aSnts arts
+    objClrMap = M.fromList $ zip parts objClrs 
+    objClrs = zipWith (mkObjClr objClrMap) parts [1..]
+   
+mkArt :: Document -> Int -> Art 
+mkArt dArt aId = art
   where 
-    tks :: Document -> [Document]
-    tks snt = typed (valueAt "tokens" snt)
+    art = Art aId parts aTitle aText
+    parts = zipWith (mkSnt art) dSnts [1..]
+    aTitle = dStr "title" dArt
+    aText = dStr "content" dArt
+    dSnts = dLst "sentences" dArt
 
--- Get all sentences from the specified articles.
-getSnts :: [Document] -> [Document]
-getSnts arts = concatMap snts arts
+mkSnt :: Art -> Document -> Int -> Snt
+mkSnt sArt dSnt sId = snt
   where
-    snts :: Document -> [Document]
-    snts art = typed (valueAt "sentences" art)
+    snt = Snt sId sArt parts
+    tks = dLst "tokens" dSnt
+    sntDeps = map (mkDep parts) $ dLst "deps" dSnt
+    parts = zipWith (mkPart snt sntDeps) tks [1..]
 
--- Create an article.
-mkArt :: [Document] -> Int -> Document -> Article
-mkArt tks id art = Article id (map (mkSentence tks) sentences) title text
+mkDep :: [Part] -> Document ->  Dep
+mkDep parts doc = Dep rel gov dpt
   where
-    val lbl = valueAt lbl art
-    text = typed (val "content")
-    title = typed (val "title")
-    sentences :: [Document]
-    sentences = typed (val "sentences")
+    rel = dStr "rel" doc
+    govIdx = dInt "gov_index" doc
+    dptIdx = dInt "dept_index" doc
+    gov = parts !! govIdx
+    dpt = parts !! dptIdx
 
--- Create a sentence.
-mkSentence :: [Document] -> Document -> Sentence
-mkSentence tks doc = Sentence objClusters
+mkPart :: Snt -> [Dep] -> Document -> Int -> Part
+mkPart pSnt sntDeps tk pId = part
   where
-    -- The tokens of the sentence.
-    sntTks :: [Document]
-    sntTks = typed (valueAt "tokens" doc)
-    -- The dependencies of the sentence.
-    sntDeps :: [Document]
-    sntDeps = typed (valueAt "deps" doc)
-    -- The object clusters of the sentence.
-    objClusters :: [ObjCluster]
-    objClusters = map (mkObjCluster tks objClusters sntDeps sntTks) sntTks
-                   
--- Create an object cluster. Needs all the object clusters of the sentence it
--- exists in (including itself), in order to be created.
--- docDeps are the documents representing the dependencies in the sentence 
--- this object cluster is created in.
--- ocs are the objectClusters spawned from that same sentence this created 
--- object cluster is spawned from.
-mkObjCluster :: [Document] -> [ObjCluster] -> [Document] -> [Document] -> Document -> ObjCluster                 
-mkObjCluster tks ocs sntDeps sntTks tk = objCluster
-  where 
-    -- Create the object cluster.
-    objCluster = ObjCluster oid [mkPart tk] argClusters
-    -- The id of the object cluster.
-    oid = fndIdx tk tks
-    -- Get documents representing parent and child dependencies.
-    pars, chdn :: [Document]
-    pars = typed (valueAt "dept_deps" tk)
-    chdn = typed (valueAt "gov_deps" tk)
-    -- Create parents, children and sibling dependencies.
-    parDeps, chdDeps :: [Dep]
-    parDeps = map (mkDep "gov_index" ocs) pars 
-    chdDeps = map (mkDep "dept_index" ocs) chdn
-    sblDepPairs :: [(Dep, Dep)]
-    sblDepPairs = concatMap toSblDepPair pars
-      where 
-        toSblDepPair par = [(mkDep "dept_index" ocs sbl, docToDep par pars parDeps) | sbl <- getChdn par]
-        -- Get child dependencies from a parent.
-        getChdn par = filter flt sntDeps
-        -- Filter dependencies that are children to the given parent 
-        -- (excluding dependencies pointing to this cluster)
-        flt p = gi == fndIdx p sntDeps && gi /= fndIdx tk sntTks
-          where gi = govIdx p
-    -- Look up a created dependency from a document.
-    docToDep :: Document -> [Document] -> [Dep] -> Dep 
-    docToDep doc docs deps = deps !! fndIdx doc docs
-    -- Create argument clusters.
-    argClusters = chdClusters ++ parClusters ++ sblClusters
-      where
-        chdClusters = [ChdCluster i objCluster [c] | (c,i) <- zip chdDeps [1..]]
-        parClusters = [ParCluster i objCluster [p] | (p,i) <- zip parDeps [1..]]
-        sblClusters = [SblCluster i objCluster [(s,p)] | ((s,p),i) <- zip sblDepPairs [1..]]
+    part = Part pId pSnt form lemma pos word parDeps chdDeps 
+    pos = dStr "pos" tk
+    lemma = dStr "lemma" tk
+    word = dStr "text" tk
+    form = BS.concat [pos, pack ":", lemma]
+    parDeps = filter (\p -> dpt p == part) sntDeps
+    chdDeps = filter (\p -> gov p == part) sntDeps
 
--- Create a dependency. idxName, denotes which index that will be used to 
--- lookup the object cluster, from the document representing the dependency.
--- Use "gov_index" for parents, or "dept_index" for children.
-mkDep :: Label -> [ObjCluster] -> Document -> Dep 
-mkDep idxName objClusters doc = Dep rel obj
+-- Retrieve typed values from documents.
+dStr :: Label -> Document -> ByteString
+dStr lbl doc = pack $ typed $ valueAt lbl doc
+dLst :: Label -> Document -> [Document]
+dLst lbl doc = typed $ valueAt lbl doc
+dInt :: Label -> Document -> Int
+dInt lbl doc = typed $ valueAt lbl doc
+
+mkObjClr :: M.HashMap Part ObjClr -> Part -> Int -> ObjClr
+mkObjClr objClrMap part ocId = oc
   where
-    rel :: String
-    rel = typed (valueAt "rel" doc)
-    objIdx :: Int
-    objIdx = typed (valueAt idxName doc)
-    obj :: ObjCluster
-    obj = objClusters !! objIdx
-
--- Create a part.
-mkPart :: Document -> Part
-mkPart tk = Part form lemma pos text
-  where
-    getVal :: Label -> String
-    getVal lbl = typed (valueAt lbl tk)
-    pos = getVal "pos"
-    lemma = getVal "lemma"
-    text = getVal "text"
-    form = pos ++ ":" ++ lemma
-
--- Utility functions
-fndIdx :: (Eq a) => a -> [a] -> Int
-fndIdx x xs = fromJust $ elemIndex x xs
-govIdx :: Document -> Int
-govIdx dep = typed $ valueAt "gov_index" dep
-dptIdx :: Document -> Int
-dptIdx dep = typed $ valueAt "dept_index" dep
-
+    oc = ObjClr ocId [part] parArgClrs chdArgClrs sblArgClrs 
+    parArgClrs = [AdjArgClr id oc [arg] Par | (arg, id) <- zip parArgs [1..]]
+    chdArgClrs = [AdjArgClr id oc [arg] Chd | (arg, id) <- zip chdArgs [1..]]
+    sblArgClrs = [RmtArgClr id oc [arg] Sbl | (arg, id) <- zip sblArgs [1..]]
+    parArgs = [AdjArg rel (toOC gov) | (Dep rel gov _) <- parDeps part ]
+    chdArgs = [AdjArg rel (toOC dep) | (Dep rel _ dep) <- chdDeps part]
+    sblArgs = [RmtArg (dRel pd) (dRel cd) (toOC $ gov cd) (toOC rmtPart) 
+              | (pd,cd) <- sblDPs, let rmtPart = dpt pd, rmtPart /= part]
+    sblDPs = concat [[(pd,cd) | cd <- chdDeps $ gov pd] | pd <- parDeps part]
+    toOC p = fromJust $ M.lookup p objClrMap

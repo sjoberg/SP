@@ -6,14 +6,22 @@ License-file:        LICENSE
 Author:              Oscar Sjöberg
 Maintainer:          osorbor@gmail.com
 Build-Type:          Simple
-Cabal-Version:       >=1.2
+Cabal-Version:       >= 1.9.2
 
-library
-  Build-Depends:     base >= 4, mtl, mongoDB, parallel
-  Exposed-Modules:   SP.Cluster, SP.Score
+Library
+  Build-Depends:     base >= 4, mtl, mongoDB, parallel, bytestring, 
+                     list-extras, hashable, unordered-containers
+  Exposed-Modules:   SP.Cluster, SP.Score, SP.Merge, SP.Redirect
   HS-Source-Dirs:    src
 
 Executable sp
   Main-is:           SP.hs
-  Build-Depends:     base >= 4, mtl, mongoDB, parallel
+  Build-Depends:     base >= 4, mtl, mongoDB, parallel, bytestring, 
+                     list-extras, hashable, unordered-containers
   HS-Source-Dirs:    src
+
+Test-Suite test-sp
+  Type:              exitcode-stdio-1.0
+  Main-is:           AllTests.hs
+  HS-Source-Dirs:    tests
+  Build-Depends:     base >= 4, Cabal >= 1.9.2

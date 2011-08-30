@@ -1,52 +1,92 @@
 module SP.Merge (mergeClusters) where
 
+import Data.HashMap.Lazy (fromList, HashMap, lookupDefault)
+import Data.List
 import SP.Cluster
 import SP.Score
 
--- * Merge all clusters in accordance with a list of good scores.
-mergeClusters :: [ObjClr] -> [Score] -> ([ObjClr], [ObjClr], [ObjClr])
-mergeClusters objClrs scores = (untouched, newClusters, usedClusters)
+type ObjClrMap = HashMap ObjClr ObjClr
+
+-- | Merge all clusters in accordance with a list of good scores.
+mergeClusters :: [ObjClr] -> [Score] -> [ObjClr]
+mergeClusters objClrs scores = redir ++ new
   where
-    newClusters = [mkObjClr id s | (id, s) <- zip [ocId (last objClrs) + 1..] scores]
-    untouched = deleteAll usedClusters objClrs
-    usedClusters = concat [[oc1 $ objScore s, oc2 $ objScore s] | s <- scores]
+    -- Object cluster map, mapping unused and used to redirected and new.
+    ocm = fromList $ newTpls -- ++ redirTuples
+    -- Redirected unused object clusters.
+    redir = snd $ unzip redirTpls 
+    -- New object clusters.
+    new = nub $ snd $ unzip newTpls
+    -- Tuples used for merge.
+    used = concatMap (\s -> map ($ s) [sOc1, sOc2]) scores
+    -- Unused object clusters.
+    unused = filter (`notElem` used) objClrs
+    -- New tuples (redirected).
+    newTpls = concat $ zipWith (mergeObjClrs ocm) newIds scores
+      where newIds = [ocId (snd $ last redirTpls) + 1..]
+    -- Tuples of unused and their redirected copies.
+    redirTpls = zipWith (mkObjClr ocm) [ocId (last objClrs) + 1..] unused
 
--- * Make a new argument cluster.
-mkObjClr :: Int -> Score -> ObjClr
-mkObjClr id s = oc
+-- | Create a new argument cluster. 
+-- | Returns a list of pairs containing a used cluster as the first element, 
+-- | and the new cluster as the second
+mergeObjClrs :: ObjClrMap -> Int -> Score -> [(ObjClr,ObjClr)]
+mergeObjClrs ocm id s = [(oc1 $ objScore s, oc), (oc2 $ objScore s, oc)]
   where 
-    oc = ObjClr id (joinParts s) (acsByRole aacRole Par) (acsByRole aacRole Chd) (acsByRole racRole Sbl)
-    joinParts (Score _ os _) = ocParts (oc1 os) ++ ocParts (oc2 os)
-    argClrs = mkArgClrs oc s
-    acsByRole f r = filter (\ac -> f ac == r) argClrs
+    oc = ObjClr id parts (acsByRole Par) (acsByRole Chd) (acsByRole Sbl)
+    parts = ocParts (oc1 os) ++ ocParts (oc2 os) where os = objScore s
+    argClrs = mergeAllArgClrs ocm oc s
+    -- Get argument clusters by a role.
+    acsByRole r = filter (\ac -> acRole ac == r) argClrs
 
--- * Make new argument clusters by merging existing ones or copying.
-mkArgClrs :: ObjClr -> Score -> [ArgClr]
-mkArgClrs oc (Score _ os ass) = clustered ++ unclustered
+-- | Make new argument clusters by merging existing ones or copying.
+mergeAllArgClrs :: ObjClrMap -> ObjClr -> Score -> [ArgClr]
+mergeAllArgClrs ocm oc (Score _ os ass) = clustered ++ unclustered
   where
     -- Results of the cluster merges.
-    clustered = [mergeArgClrs id oc (ac1 as) (ac2 as) | (id, as) <- zip [1..] ass] 
-    -- Copies of the scores that were not merged. Originals can't be used,
+    clustered = zipWith (\s -> mergeArgClrs ocm oc (ac1 s) (ac2 s)) ass [1..]
+    -- Copies of the scores that were not merged. orginals can't be used,
     -- since they point to the wrong object cluster and have the wrong id.
-    unclustered = [mkArgClr id oc orig | (id, orig) <- zip [length ass + 1..] origUnclustered]
-    -- Original argument clusters not merged.
-    origUnclustered = deleteAll usedArgClusters origArgClusters
-    -- The original argument clusters of both object clusters.
-    origArgClusters = argClrs (oc1 os) ++ argClrs (oc2 os)
+    unclustered = zipWith (mkArgClr ocm oc) orgUnclustered [length ass + 1..]
+    -- orginal argument clusters not merged.
+    orgUnclustered = filter (`notElem` usedArgClrs) orgArgClrs
+    -- The orginal argument clusters of both object clusters.
+    orgArgClrs = argClrs (oc1 os) ++ argClrs (oc2 os)
       where argClrs oc = parArgClrs oc ++ chdArgClrs oc ++  sblArgClrs oc
-    -- Original argument clusters used for merging.
-    usedArgClusters = concat [[ac1 as, ac2 as] | as <- ass]
+    -- orginal argument clusters used for merging.
+    usedArgClrs = concat [[ac1 as, ac2 as] | as <- ass]
 
--- * Create a new argument cluster by merging two existing ones.
-mergeArgClrs :: Int -> ObjClr -> ArgClr -> ArgClr -> ArgClr
-mergeArgClrs id oc (AdjArgClr _ _ args1 role) (AdjArgClr _ _ args2 _) = AdjArgClr id oc (args1 ++ args2) role
-mergeArgClrs id oc (RmtArgClr _ _ args1 role) (RmtArgClr _ _ args2 _) = RmtArgClr id oc (args1 ++ args2) role
+-- | Create a new argument cluster by merging two existing ones.
+mergeArgClrs :: ObjClrMap -> ObjClr -> ArgClr -> ArgClr -> Int -> ArgClr
+mergeArgClrs ocm oc (AdjArgClr _ _ args1 role) (AdjArgClr _ _ args2 _) id = 
+  AdjArgClr id oc (map (rplAdjArg ocm) $ args1 ++ args2) role
+mergeArgClrs ocm oc (RmtArgClr _ _ args1 role) (RmtArgClr _ _ args2 _) id = 
+  RmtArgClr id oc (map (rplRmtArg ocm) $ args1 ++ args2) role
 
--- * Make an argument cluster from an existing one.
-mkArgClr :: Int -> ObjClr -> ArgClr -> ArgClr
-mkArgClr id oc (AdjArgClr _ _ args role) = AdjArgClr id oc args role
-mkArgClr id oc (RmtArgClr _ _ args role) = RmtArgClr id oc args role
+-- | Create an argument cluster from an existing one.
+mkArgClr :: ObjClrMap -> ObjClr -> ArgClr -> Int -> ArgClr
+mkArgClr ocm oc ac@AdjArgClr {aacArgs=args} id = 
+  ac {aacId=id, aacObj=oc, aacArgs=map (rplAdjArg ocm) args}
+mkArgClr ocm oc ac@RmtArgClr {racArgs=args} id = 
+  ac {racId=id, racObj=oc, racArgs=map (rplRmtArg ocm) args}
 
--- * Returns the a list without the xs.
-deleteAll :: Eq a => [a] -> [a] -> [a]
-deleteAll xs = filter (`notElem` xs)
+-- | Make a new object cluster with updated references.
+mkObjClr :: ObjClrMap -> Int -> ObjClr -> (ObjClr, ObjClr)
+mkObjClr ocm id oc@ObjClr {parArgClrs=oldPacs, chdArgClrs=oldCacs, 
+                          sblArgClrs=oldSacs, ocParts=oldParts} = 
+  (oc, ocNew)
+  where 
+    ocNew = ObjClr id oldParts pacs cacs sacs
+    pacs = mapArgClrs oldPacs -- Parent argument clusters.
+    cacs = mapArgClrs oldCacs -- Child argument clusters.
+    sacs = mapArgClrs oldSacs -- Sibling argument clusters.
+    mapArgClrs = map (\ac -> mkArgClr ocm ocNew ac $ acId ac)
+
+rplObjClr :: ObjClrMap -> ObjClr -> ObjClr
+rplObjClr ocm oc = lookupDefault oc oc ocm
+rplAdjArg :: ObjClrMap -> AdjArg -> AdjArg
+rplAdjArg ocm arg@AdjArg {obj = oc} = arg {obj=rplObjClr ocm oc}
+rplRmtArg :: ObjClrMap -> RmtArg -> RmtArg
+rplRmtArg ocm arg@RmtArg {intObj=intObj, rmtObj=rmtObj} = 
+  arg {intObj=rplObjClr ocm intObj, rmtObj=rplObjClr ocm rmtObj}
+

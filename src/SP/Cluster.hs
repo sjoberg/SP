@@ -1,38 +1,103 @@
 module SP.Cluster where
 
+import Data.ByteString.Char8 (ByteString, unpack)
+import Data.Hashable
 import Data.List
 
-data Article = Article {aid::Int, sentences::[Sentence], title::String, text::String} deriving (Show)
-data Sentence = Sentence {objClusters::[ObjCluster]} deriving (Show)
+-- | Article.
+data Art = Art {aId::Int, aSnts::[Snt], aTitle, aText::ByteString} 
+-- | Sentence.
+data Snt = Snt {sId::Int, sArt::Art, sParts::[Part]} deriving (Show)
+-- | Part.
+data Part = Part {pId::Int, pSnt::Snt, form, lemma, pos, word::ByteString, 
+                  parDeps, chdDeps::[Dep]}
+-- | Dependency.
+data Dep = Dep {dRel::ByteString, gov, dpt::Part} deriving (Show)
+-- | Object cluster.
+data ObjClr = ObjClr {ocId::Int, ocParts::[Part], parArgClrs, chdArgClrs, 
+                      sblArgClrs::[ArgClr]}
+-- | Argument. Adjacent or remote.
+data AdjArg = AdjArg {rel::ByteString, obj::ObjClr}
+data RmtArg = RmtArg {intRel,rmtRel::ByteString, intObj,rmtObj::ObjClr} 
+-- | Argument cluster.
+data ArgClr = AdjArgClr {aacId::Int, aacObj::ObjClr, aacArgs::[AdjArg], 
+                         aacRole::Role} 
+            | RmtArgClr {racId::Int, racObj::ObjClr, racArgs::[RmtArg], 
+                         racRole::Role} 
+data Role = Par | Chd | Sbl deriving (Show, Eq)
 
-data ObjCluster = ObjCluster {uid::Int, parts::[Part], argClusters::[ArgCluster]}
+-- General accessor methods for argument clusters.
+acId :: ArgClr -> Int
+acId AdjArgClr {aacId = id} = id
+acId RmtArgClr {racId = id} = id
+acRole :: ArgClr -> Role
+acRole AdjArgClr {aacRole = role} = role
+acRole RmtArgClr {racRole = role} = role
 
-instance Eq ObjCluster where
-  c1 == c2 = uid c1 == uid c2
+-- Equality.
+instance Eq Art where
+  a1 == a2 = aId a1 == aId a2
 
-instance Show ObjCluster where
-  show oc = show $ parts oc
+instance Eq Snt where
+  s1 == s2 = sId s1 == sId s2 && sArt s1 == sArt s2
 
-data ArgCluster = ChdCluster Int ObjCluster [Dep]
-                | ParCluster Int ObjCluster [Dep] 
-                | SblCluster Int ObjCluster [(Dep,Dep)] 
-                deriving (Show)
+instance Eq Part where
+  p1 == p2 = pId p1 == pId p2 && pSnt p1 == pSnt p2
+  
+instance Eq ObjClr where
+  c1 == c2 = ocId c1 == ocId c2
 
-instance Eq ArgCluster where
-  SblCluster id1 oc1 _ == SblCluster id2 oc2 _ = id1 == id2 && oc1 == oc2
-  ParCluster id1 oc1 _ == ParCluster id2 oc2 _ = id1 == id2 && oc1 == oc2
-  ChdCluster id1 oc1 _ == ChdCluster id2 oc2 _ = id1 == id2 && oc1 == oc2
-  _                == _                = False
+instance Eq ArgClr where
+  -- Must have same id, object cluster, and role.
+  AdjArgClr id1 oc1 _ r1 == AdjArgClr id2 oc2 _ r2 = 
+    id1 == id2 && oc1 == oc2 && r1 == r2
+  RmtArgClr id1 oc1 _ r1 == RmtArgClr id2 oc2 _ r2 = 
+    id1 == id2 && oc1 == oc2 && r1 == r2
 
-data Part = Part {form :: String, lemma :: String, pos :: String, word :: String}
+-- Show.
 instance Show Part where
-  show p = show $ form p
+  show p = unpack (word p) ++ " " ++ unpack (form p)
 
-data Dep = Dep {rel::String, obj::ObjCluster} deriving (Show) -- Relation, destination object
+instance Show ObjClr where
+  show oc = "\n" ++ id ++ parts ++ parArgs ++ chdArgs ++ sblArgs
+    where
+      id = fuse ["ID: ", show (ocId oc)]
+      parts = fuse ["Parts: ", show (ocParts oc)]
+      parArgs = fuse ["ParArgClrs: ", show (parArgClrs oc)] 
+      chdArgs = fuse ["ChdArgClrs: ", show (chdArgClrs oc)] 
+      sblArgs = fuse ["SblArgClrs: ", show (sblArgClrs oc)] 
 
-instance Eq Dep where
-  Dep rel1 obj1 == Dep rel2 obj2 = (rel1 == rel2) && (obj1 == obj2)
+fuse strs = concat strs ++ "\n"
 
-objClustersFromArts :: [Article] -> [ObjCluster]
-objClustersFromArts arts = concatMap objClusters $ concatMap sentences arts
+instance Show ArgClr where
+  show AdjArgClr {aacArgs = args} = show args
+  show RmtArgClr {racArgs = args} = show args
+
+instance Show AdjArg where
+  show (AdjArg rel obj) = unpack rel ++ " " ++ show (ocId obj) ++ " " ++ 
+    show (ocParts obj)
+
+instance Show RmtArg where
+  show (RmtArg intRel rmtRel intObj rmtObj) = 
+    unpack intRel ++ " " ++ show (ocId intObj) ++ " " ++ 
+      show (ocParts intObj) ++ "\n" ++
+      unpack rmtRel ++ " " ++ show (ocId rmtObj) ++ " " ++ 
+      show (ocParts rmtObj)
+
+instance Show Art where
+  show Art {aId = id, aTitle = title, aText = text} = 
+    fuse ["ID: ", show id] ++ fuse ["Title: ", unpack title] ++ fuse ["Text: ", unpack text]
+
+-- Hashable.
+instance Hashable Art where
+  hash = aId
+
+instance Hashable Snt where
+  hash snt = sId snt `combine` hash (sArt snt)
+
+instance Hashable Part where
+  hash part = pId part `combine` hash (pSnt part)
+  
+instance Hashable ObjClr where
+  hash = ocId
 
