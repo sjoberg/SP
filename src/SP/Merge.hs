@@ -12,7 +12,7 @@ mergeClusters :: [ObjClr] -> [Score] -> [ObjClr]
 mergeClusters objClrs scores = redir ++ new
   where
     -- Object cluster map, mapping unused and used to redirected and new.
-    ocm = fromList $ newTpls -- ++ redirTuples
+    ocm = fromList $ newTpls ++ redirTpls
     -- Redirected unused object clusters.
     redir = snd $ unzip redirTpls 
     -- New object clusters.
@@ -73,7 +73,7 @@ mkArgClr ocm oc ac@RmtArgClr {racArgs=args} id =
 -- | Make a new object cluster with updated references.
 mkObjClr :: ObjClrMap -> Int -> ObjClr -> (ObjClr, ObjClr)
 mkObjClr ocm id oc@ObjClr {parArgClrs=oldPacs, chdArgClrs=oldCacs, 
-                          sblArgClrs=oldSacs, ocParts=oldParts} = 
+                           sblArgClrs=oldSacs, ocParts=oldParts} = 
   (oc, ocNew)
   where 
     ocNew = ObjClr id oldParts pacs cacs sacs

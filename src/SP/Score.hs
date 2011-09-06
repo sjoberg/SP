@@ -31,7 +31,11 @@ cmpRmtArgs xs ys = scr intRel + scr rmtRel + scr intObj + scr rmtObj
 
 -- | Calculates the similarity between two dependencies with respect to a field.
 cmpFld :: (Eq b) => (a -> b) -> [a] -> [a] -> Double
-cmpFld f xs ys = sum [1.0 - abs (freq f v xs - freq f v ys) | v <- uniques] / genericLength uniques
+cmpFld f xs ys = 
+  if null uniques 
+    then 0.0 
+    else sum [1.0 - abs (freq f v xs - freq f v ys) | v <- uniques] 
+           / genericLength uniques
   where uniques = unique f xs ys
 
 -- | The frequency of the value v in the dependencies xs.
@@ -40,7 +44,7 @@ freq f v xs = genericLength (filter (\x -> f x == v) xs) / genericLength xs
 
 -- | The unique values of the property, transformed by f, in the dependencies in xs, ys.
 unique :: (Eq b) => (a -> b) -> [a] -> [a] -> [b]
-unique f xs ys = nub (map f xs `union` map f ys)
+unique f xs ys = nub (map f xs `intersect` map f ys)
 
 -- | Get the best combination of argument scores. Greedy search.
 bestArgScores :: ObjClr -> ObjClr -> [ArgScore]
