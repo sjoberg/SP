@@ -26,6 +26,11 @@ data ArgClr = AdjArgClr {aacId::Int, aacObj::ObjClr, aacArgs::[AdjArg],
                          racRole::Role} 
 data Role = Par | Chd | Sbl deriving (Show, Eq)
 
+
+-- Accessor methods for object clusters.
+ocArgClrs :: ObjClr -> [ArgClr]
+ocArgClrs (ObjClr _ _ ps cs ss) = ps ++ cs ++ ss
+
 -- General accessor methods for argument clusters.
 acId :: ArgClr -> Int
 acId AdjArgClr {aacId = id} = id

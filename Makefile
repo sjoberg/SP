@@ -1,12 +1,12 @@
 REL_TOP := $(dir $(lastword $(MAKEFILE_LIST)))
 TOP=`readlink -f $(REL_TOP)`/dist
 PROF_FLAGS=-prof -fforce-recomp -auto-all
-RTS_FLAGS=-threaded +RTS -N4 -RTS
+RTS_FLAGS=-rtsopts=all -threaded
 all: build test
 
 build:
 	@echo "Building..."
-	@cabal install --prefix=$(TOP) --user -O2 --ghc-options="$(RTS_FLAGS)"
+	cabal install --prefix=$(TOP) --user -O2 --ghc-options="$(RTS_FLAGS)"
 
 build-prof:
 	@echo "Building..."
@@ -27,7 +27,8 @@ test:
 	@runhaskell -w tests/AllTests.hs
 
 run:
-	@dist/bin/sp +RTS -N4 -K100M -RTS
+	dist/bin/sp +RTS -N -K100M -RTS
+	@# +RTS -N -RTS # -K100M -RTS
 
 run-prof:
 	@dist/bin/sp +RTS -N1 -K100M -xc -RTS

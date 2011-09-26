@@ -23,12 +23,13 @@ reutersMergers = rest =<< find (select q "reuters.mergers")
   where 
     q = ["status" =: u"ok", "sentences" =: ["$exists" =: True]]
 
-mkDomain cb dArts = liftIO $ cb arts objClrs
+mkDomain cb dArts = liftIO $ cb arts fObjClrs
   where
     arts = zipWith mkArt (take 10 dArts) [1..]
     parts = concatMap sParts $ concatMap aSnts arts
     objClrMap = M.fromList $ zip parts objClrs 
     objClrs = zipWith (mkObjClr objClrMap) parts [1..]
+    fObjClrs = filter (not . null . ocArgClrs) objClrs
    
 mkArt :: Document -> Int -> Art 
 mkArt dArt aId = art

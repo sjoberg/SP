@@ -1,4 +1,5 @@
 
+import Control.Monad
 import Control.Monad.Trans (liftIO)
 import Data.List (genericLength)
 import Data.List.Extras
@@ -15,27 +16,29 @@ main = bootstrap cluster
 
 cluster :: [Art] -> [ObjClr] -> IO ()
 cluster arts objClrs = liftIO $ do
-  print arts
+--print arts
   iter 1 objClrs
 
-iter :: Int -> [ObjClr] -> IO () -- [ObjClr]
-iter n cs = liftIO $ do
-  printf "%d object clusters.\n" $ length cs
+iter :: Int -> [ObjClr] -> IO ()
+iter n clrs = liftIO $ do
   printf "Making iteration %d...\n" n
+  printf "%d object clusters.\n" $ length clrs
   start <- getCPUTime
-  let ss = bestScores cs -- Scores.
-  printf "Total score: %.2f\n" $ sum $ map scoreVal ss
-  printf "Number of scores: %d\n" $ length ss
-  printf "Score: %.2f\n" $ scoreVal $ head ss
-  let result = mergeClusters cs ss
+  -- Scores.
+  let scores = bestScrs clrs
+  printf "Total score: %.2f\n" $ sum $ map val scores
+  printf "Number of scores: %d\n" $ length scores
+  -- Merge clusters.
+  let result = mergeClusters clrs scores
+  -- End and print timing.
   end <- getCPUTime
   let elapsed :: Double
       elapsed = fromIntegral (end - start) / 10^9
-  printf "Time elapsed: %.2f s\n" $ elapsed / 10^3
-  printf "Time elapsed / cluster: %.2f ms\n" $ elapsed / genericLength cs
-  print $ argmaxes (length . ocParts) result
-  return ()
-  {-if scoreVal (head ss) >= 0.25 
-    then iter (n+1) result
-    else return ()-}
+  -- Elapsed time, seconds.
+  printf "Time elapsed: %.2f s\n" $ elapsed / 10^3 
+  -- Elapsed time / cluster, milliseconds.
+  printf "Time elapsed / cluster: %.2f ms\n" $ elapsed / genericLength clrs
+  -- Print and contingently continue.
+  print scores
+  unless (null scores) $ iter (n + 1) result
 

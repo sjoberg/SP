@@ -8,7 +8,7 @@ import SP.Score
 type ObjClrMap = HashMap ObjClr ObjClr
 
 -- | Merge all clusters in accordance with a list of good scores.
-mergeClusters :: [ObjClr] -> [Score] -> [ObjClr]
+mergeClusters :: [ObjClr] -> [OpScr] -> [ObjClr]
 mergeClusters objClrs scores = redir ++ new
   where
     -- Object cluster map, mapping unused and used to redirected and new.
@@ -18,7 +18,7 @@ mergeClusters objClrs scores = redir ++ new
     -- New object clusters.
     new = nub $ snd $ unzip newTpls
     -- Tuples used for merge.
-    used = concatMap (\s -> map ($ s) [sOc1, sOc2]) scores
+    used = concatMap (\s -> map ($ scr s) [sOc1, sOc2]) scores
     -- Unused object clusters.
     unused = filter (`notElem` used) objClrs
     -- New tuples (redirected).
@@ -30,18 +30,19 @@ mergeClusters objClrs scores = redir ++ new
 -- | Create a new argument cluster. 
 -- | Returns a list of pairs containing a used cluster as the first element, 
 -- | and the new cluster as the second
-mergeObjClrs :: ObjClrMap -> Int -> Score -> [(ObjClr,ObjClr)]
-mergeObjClrs ocm id s = [(oc1 $ objScore s, oc), (oc2 $ objScore s, oc)]
+mergeObjClrs :: ObjClrMap -> Int -> OpScr -> [(ObjClr,ObjClr)]
+mergeObjClrs ocm id s = [((oc1 . objScr . scr) s, oc), 
+                         ((oc2 . objScr . scr) s, oc)]
   where 
     oc = ObjClr id parts (acsByRole Par) (acsByRole Chd) (acsByRole Sbl)
-    parts = ocParts (oc1 os) ++ ocParts (oc2 os) where os = objScore s
-    argClrs = mergeAllArgClrs ocm oc s
-    -- Get argument clusters by a role.
+    parts = ocParts (oc1 os) ++ ocParts (oc2 os) where os = objScr $ scr s
+    argClrs = mergeAllArgClrs ocm oc $ scr s
+    -- Get argument clusters by role.
     acsByRole r = filter (\ac -> acRole ac == r) argClrs
 
 -- | Make new argument clusters by merging existing ones or copying.
-mergeAllArgClrs :: ObjClrMap -> ObjClr -> Score -> [ArgClr]
-mergeAllArgClrs ocm oc (Score _ os ass) = clustered ++ unclustered
+mergeAllArgClrs :: ObjClrMap -> ObjClr -> Scr -> [ArgClr]
+mergeAllArgClrs ocm oc (Scr os ass u1 u2) = clustered ++ unclustered
   where
     -- Results of the cluster merges.
     clustered = zipWith (\s -> mergeArgClrs ocm oc (ac1 s) (ac2 s)) ass [1..]
@@ -49,7 +50,7 @@ mergeAllArgClrs ocm oc (Score _ os ass) = clustered ++ unclustered
     -- since they point to the wrong object cluster and have the wrong id.
     unclustered = zipWith (mkArgClr ocm oc) orgUnclustered [length ass + 1..]
     -- orginal argument clusters not merged.
-    orgUnclustered = filter (`notElem` usedArgClrs) orgArgClrs
+    orgUnclustered = u1 ++ u2 -- filter (`notElem` usedArgClrs) orgArgClrs
     -- The orginal argument clusters of both object clusters.
     orgArgClrs = argClrs (oc1 os) ++ argClrs (oc2 os)
       where argClrs oc = parArgClrs oc ++ chdArgClrs oc ++  sblArgClrs oc
@@ -73,8 +74,7 @@ mkArgClr ocm oc ac@RmtArgClr {racArgs=args} id =
 -- | Make a new object cluster with updated references.
 mkObjClr :: ObjClrMap -> Int -> ObjClr -> (ObjClr, ObjClr)
 mkObjClr ocm id oc@ObjClr {parArgClrs=oldPacs, chdArgClrs=oldCacs, 
-                           sblArgClrs=oldSacs, ocParts=oldParts} = 
-  (oc, ocNew)
+                           sblArgClrs=oldSacs, ocParts=oldParts} = (oc, ocNew)
   where 
     ocNew = ObjClr id oldParts pacs cacs sacs
     pacs = mapArgClrs oldPacs -- Parent argument clusters.
@@ -82,11 +82,12 @@ mkObjClr ocm id oc@ObjClr {parArgClrs=oldPacs, chdArgClrs=oldCacs,
     sacs = mapArgClrs oldSacs -- Sibling argument clusters.
     mapArgClrs = map (\ac -> mkArgClr ocm ocNew ac $ acId ac)
 
+-- | Eventually substitutes an object cluster.
 rplObjClr :: ObjClrMap -> ObjClr -> ObjClr
 rplObjClr ocm oc = lookupDefault oc oc ocm
 rplAdjArg :: ObjClrMap -> AdjArg -> AdjArg
-rplAdjArg ocm arg@AdjArg {obj = oc} = arg {obj=rplObjClr ocm oc}
+rplAdjArg ocm arg@AdjArg {obj = oc} = arg {obj = rplObjClr ocm oc}
 rplRmtArg :: ObjClrMap -> RmtArg -> RmtArg
-rplRmtArg ocm arg@RmtArg {intObj=intObj, rmtObj=rmtObj} = 
-  arg {intObj=rplObjClr ocm intObj, rmtObj=rplObjClr ocm rmtObj}
+rplRmtArg ocm arg@RmtArg {intObj = intObj, rmtObj = rmtObj} = 
+  arg {intObj = rplObjClr ocm intObj, rmtObj = rplObjClr ocm rmtObj}
 
