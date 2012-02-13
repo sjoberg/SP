@@ -9,15 +9,22 @@ Build-Type:          Simple
 Cabal-Version:       >= 1.9.2
 
 Library
-  Build-Depends:     base >= 4, mtl, mongoDB, parallel, bytestring, 
-                     list-extras, hashable, unordered-containers
-  Exposed-Modules:   SP.Cluster, SP.Score, SP.Merge
+  Build-Depends:     base >= 4, mtl, mongoDB, parallel, bytestring, bson,
+                     list-extras, hashable, unordered-containers, array, 
+                     deepseq, regex-compat, MissingH, ConfigFile, containers,
+                     text, stream-fusion
+  Exposed-Modules:   SP.Cluster, SP.Score.Score, SP.Preprocess.Preprocess
+                     SP.ByteString, SP.DeepSeq, SP.Preprocess.Compound,
+                     SP.Redirect, SP.Config, SP.Bootstrap.MongoDB,
+                     SP.Score.Scorer, SP.Score.Argument, SP.Score.Object,
+                     SP.Score.Math
   HS-Source-Dirs:    src
-
 Executable sp
+  Build-Depends:     base >= 4, mtl, mongoDB, parallel, bytestring, bson,
+                     list-extras, hashable, unordered-containers, array, 
+                     deepseq, regex-compat, MissingH, ConfigFile, containers,
+                     text, stream-fusion
   Main-is:           SP.hs
-  Build-Depends:     base >= 4, mtl, mongoDB, parallel, bytestring, 
-                     list-extras, hashable, unordered-containers
   HS-Source-Dirs:    src
 
 Test-Suite test-sp

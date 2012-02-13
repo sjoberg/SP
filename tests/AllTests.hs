@@ -11,30 +11,38 @@ import SP.Score
 -- Object clusters, test sentence 1.
 ocsSnt1 = [oc1, oc2, oc3]
   where
-    oc1 = ObjClr 1 [Part {pId=1, word=pack "Partake", form=pack "partake:VB"}] 
-            [] [fst pc1] []
-    oc2 = ObjClr 2 [Part {pId=2, word=pack "your", form=pack "you:PRP$"}] 
-            [snd pc2] [] []
-    oc3 = ObjClr 3 [Part {pId=3, word=pack "soup", form=pack "soup:NN"}] 
-            [snd pc1] [fst pc2] []
+    oc1 = ObjClr {ocId=1, ocParts=[Part {pId=1, word=pack "Partake", 
+                                         form=pack "partake:VB"}],
+                  parArgClrs=[], chdArgClrs=[fst pc1], sblArgClrs=[]}
+    oc2 = ObjClr {ocId=2, ocParts=[Part {pId=2, word=pack "your", 
+                                         form=pack "you:PRP$"}],
+                  parArgClrs=[snd pc2], chdArgClrs=[], sblArgClrs=[]}
+    oc3 = ObjClr {ocId=3, ocParts=[Part {pId=3, word=pack "soup", 
+                                         form=pack "soup:NN"}],
+                  parArgClrs=[snd pc1], chdArgClrs=[fst pc2], sblArgClrs=[]}
     pc1 = mkPCPair 1 2 oc1 oc3 "dobj"
     pc2 = mkPCPair 3 4 oc3 oc2 "poss"
 
 -- Object clusters, test sentence 2.
 ocsSnt2 = [oc1, oc2, oc3]
   where
-    oc1 = ObjClr 4 [Part {pId=4, word=pack "Eat", form=pack "eat:VB"}] 
-            [] [fst pc1] []
-    oc2 = ObjClr 5 [Part {pId=5, word=pack "your", form=pack "you:PRP$"}] 
-            [snd pc2] [] []
-    oc3 = ObjClr 6 [Part {pId=6, word=pack "soup", form=pack "soup:NN"}] 
-            [snd pc1] [fst pc2] []
+    oc1 = ObjClr {ocId=4, ocParts=[Part {pId=4, word=pack "Eat", 
+                                         form=pack "eat:VB"}],
+                  parArgClrs=[], chdArgClrs=[fst pc1], sblArgClrs=[]}
+    oc2 = ObjClr {ocId=5, ocParts=[Part {pId=5, word=pack "your", 
+                                         form=pack "you:PRP$"}],
+                  parArgClrs=[snd pc2], chdArgClrs=[], sblArgClrs=[]}
+    oc3 = ObjClr {ocId=6, ocParts=[Part {pId=6, word=pack "soup", 
+                                         form=pack "soup:NN"}],
+                  parArgClrs=[snd pc1], chdArgClrs=[fst pc2], sblArgClrs=[]}
     pc1 = mkPCPair 5 6 oc1 oc3 "dobj"
     pc2 = mkPCPair 7 8 oc3 oc2 "poss"
 
 -- Create a parent / child arguments.
-mkPCPair id1 id2 p c rel = (AdjArgClr id1 p [AdjArg (pack rel) c] Chd,
-                            AdjArgClr id2 c [AdjArg (pack rel) p] Par)
+mkPCPair id1 id2 p c rel = (AdjArgClr {aacId=id1, aacObj=p, aacRole=Chd,
+                                       aacArgs=[AdjArg (pack rel) c]},
+                            AdjArgClr {aacId=id2, aacObj=c, aacRole=Par,
+                                       aacArgs=[AdjArg (pack rel) p]})
 
 -- Compare two object clusters against an expected value.
 testCmp ocs oi1 oi2 e = TestLabel (show oi1 ++ " vs. " ++ show oi2) tc

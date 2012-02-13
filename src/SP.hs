@@ -1,44 +1,38 @@
-
-import Control.Monad
 import Control.Monad.Trans (liftIO)
-import Data.List (genericLength)
-import Data.List.Extras
-import SP.Bootstrapper
+import Data.List
+import Data.Ord
+import SP.ByteString
 import SP.Cluster
-import SP.Score
-import SP.Merge
-import System.CPUTime
-import System.Environment
-import Text.Printf
+import SP.Config
+import SP.Bootstrap.MongoDB
+import SP.Preprocess.Compound
+import SP.Preprocess.Preprocess
+import SP.Score.Score
+import SP.Score.Scorer
+import Text.Printf (printf)
+import Prelude
+import System.Exit
 
 main :: IO ()
-main = bootstrap cluster
+main = bootstrap start
 
-cluster :: [Art] -> [ObjClr] -> IO ()
-cluster arts objClrs = liftIO $ do
---print arts
-  iter 1 objClrs
+start :: [Partition] -> IO ()
+start ptns1 = liftIO $ do
+  config <- getConfig
+  let ptns2 = takePartitions config ptns1
+      ptns3 = mergeNerCompounds ptns2
+  iter 1 ptns3
+  exitSuccess
 
-iter :: Int -> [ObjClr] -> IO ()
-iter n clrs = liftIO $ do
-  printf "Making iteration %d...\n" n
-  printf "%d object clusters.\n" $ length clrs
-  start <- getCPUTime
-  -- Scores.
-  let scores = bestScrs clrs
-  printf "Total score: %.2f\n" $ sum $ map val scores
-  printf "Number of scores: %d\n" $ length scores
-  -- Merge clusters.
-  let result = mergeClusters clrs scores
-  -- End and print timing.
-  end <- getCPUTime
-  let elapsed :: Double
-      elapsed = fromIntegral (end - start) / 10^9
-  -- Elapsed time, seconds.
-  printf "Time elapsed: %.2f s\n" $ elapsed / 10^3 
-  -- Elapsed time / cluster, milliseconds.
-  printf "Time elapsed / cluster: %.2f ms\n" $ elapsed / genericLength clrs
-  -- Print and contingently continue.
-  print scores
-  unless (null scores) $ iter (n + 1) result
-
+iter :: Int -> [Partition] -> IO ()
+iter n ptns = liftIO $ do
+  printf "Starting iteration %d.\n" n
+  let groups = groupByPos ptns
+      best = maxOperatorScores 0.25 groups
+--print ptns
+  mapM_ (putStrLn.show) best
+  {-nptns = merge best ptns
+  if null best 
+    then return nptns
+    else return (iter (n+1) nptns)-}
+--mapM_ ((putStrLn . unwords . map (unpack.text.head.parts)).sortBy (comparing ocId).ocs) ptns 
