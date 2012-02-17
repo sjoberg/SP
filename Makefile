@@ -1,10 +1,10 @@
 REL_TOP := $(dir $(lastword $(MAKEFILE_LIST)))
 TOP=`readlink -f $(REL_TOP)`/dist
 RTS_FLAGS=-rtsopts=all -threaded
-GHC_FLAGS=-XTypeSynonymInstances -XBangPatterns -O2 -fforce-recomp -funfolding-use-threshold=16 -fexcess-precision -fllvm
+GHC_FLAGS=-XTypeSynonymInstances -XBangPatterns -O2 -fllvm
 PROF_FLAGS=-prof -fforce-recomp -auto-all
 all: build
-
+# -fforce-recomp -funfolding-use-threshold=16 -fexcess-precision -fllvm
 build:
 	@echo "Building..."
 	@cabal install --prefix=$(TOP) --user -O2 --ghc-options="$(GHC_FLAGS) $(RTS_FLAGS)"

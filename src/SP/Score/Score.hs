@@ -4,9 +4,9 @@ module SP.Score.Score where
 import SP.Cluster
 
 data OperatorScore = OperatorScore 
-  { opScrVal :: !Double
+  { opScrVal :: Double
   , op :: Operator
-  , mergeTuple :: (Int,Int)
+  , objScr :: ObjectScore
   } deriving (Show)
 
 data ObjectScore = ObjectScore 

@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeSynonymInstances #-}
-module SP.Score.Argument (bestArgumentScores) where
+module SP.Score.Argument where
 
 import Data.Function
 import Data.Hashable

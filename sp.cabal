@@ -17,7 +17,7 @@ Library
                      SP.ByteString, SP.DeepSeq, SP.Preprocess.Compound,
                      SP.Redirect, SP.Config, SP.Bootstrap.MongoDB,
                      SP.Score.Scorer, SP.Score.Argument, SP.Score.Object,
-                     SP.Score.Math
+                     SP.Score.Math, SP.Merge
   HS-Source-Dirs:    src
 Executable sp
   Build-Depends:     base >= 4, mtl, mongoDB, parallel, bytestring, bson,

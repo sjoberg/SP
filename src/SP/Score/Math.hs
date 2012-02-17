@@ -7,8 +7,10 @@ import Prelude hiding (null)
 
 amean2, hmean2, ca2 :: Double -> Double -> Double
 amean2 x y = (x + y) / 2
-hmean2 x y = x * y * 2 / (x + y)
-ca2 x y = 1 / m * sqrt(0.5 * ((x-m)^2 + (y-m)^2))
+hmean2 x y | x == 0 && y == 0 = 0
+           | otherwise        = x * y * 2 / (x + y)
+ca2 x y | m == 0    = 0
+        | otherwise = 1 / m * sqrt(0.5 * ((x-m)^2 + (y-m)^2))
   where m = amean2 x y
 
 amean3, ca3 :: Double -> Double -> Double -> Double

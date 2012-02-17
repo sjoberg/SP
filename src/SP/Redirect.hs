@@ -17,15 +17,10 @@ redirect :: Partition -> HashMap ObjectCluster ObjectCluster -> Partition
 redirect ptn objMap = newPtn `deepseq` newPtn 
   where
   newPtn = ptn {ocs = nub $ elems objMapDeep, acs = map aUpdate $ acs ptn}
---new, del, keep :: [ObjectCluster]
---delNew = unzip $ toList objMap
---del = fst delNew -- Object clusters to remove.
---new = nub $ snd delNew -- New object clusters.
---keep = filter (`notElem` del) (ocs ptn) -- Old object clusters to keep.
-  
+
   -- Maps for old to new object and argument clusters.
   objMapDeep :: HashMap ObjectCluster ObjectCluster
-  objMapDeep = unionWith merge objMap (fromList $ map toTpl $ ocs ptn) --keep ++ new ++ del)
+  objMapDeep = unionWith merge objMap (fromList $ map toTpl $ ocs ptn)
     where toTpl o = (o, oUpdate o); merge o _ = oUpdate o
   argMap = fromList $ map (\a -> (a, aUpdate a)) (acs ptn)
   
@@ -34,16 +29,14 @@ redirect ptn objMap = newPtn `deepseq` newPtn
   oUpdate o@(ObjectCluster {pars = pars, chdn = chdn, sbls = sbls}) = 
     o {pars = itUpdate pars, chdn = itUpdate chdn, sbls = itUpdate sbls}
     where itUpdate = map get -- = map first aUpdate
-          get it = (lookup (fst it) argMap, snd it)
+          get it = (lookupDefault (fst it) (fst it) argMap, snd it)
   
-  lookup k = fromJust.HashMap.lookup k
-
   -- Redirect an argument cluster.
   aUpdate :: ArgumentCluster -> ArgumentCluster
   aUpdate a@(ArgumentCluster {parMap = parMap, chdMap = chdMap}) = 
     a {parMap = amUpd parMap, chdMap = amUpd chdMap}
     where amUpd m = IntMap.fromList $ map itUpdate (IntMap.toList m)
-          itUpdate (id,inc) = (ocId $ lookup oKey objMapDeep, inc)
+          itUpdate (id,inc) = (ocId $ lookupDefault oKey oKey objMapDeep, inc)
             where oKey = ObjectCluster {ocId = id}
   aUpdate (D2ArgumentCluster x y) = D2ArgumentCluster (aUpdate x) (aUpdate y)
   

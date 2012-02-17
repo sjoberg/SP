@@ -25,14 +25,15 @@ data Part = Part { partId, artId, sntId :: Id
 
 data ArgumentCluster = ArgumentCluster { acId :: Id
                                        , parMap, chdMap :: ObjectMap
-                                       , relMap :: RelationMap} |
-                       D2ArgumentCluster { acFst, acSnd :: ArgumentCluster
+                                       , relMap :: RelationMap}
+                     | D2ArgumentCluster { acFst, acSnd :: ArgumentCluster
                                          } deriving (Read,Show)
 
 instance Eq Partition where (==) = (==) `on` ptnId
 instance Eq ObjectCluster where (==) = (==) `on` ocId
 instance Eq Part where (==) = (==) `on` partId
 instance Hashable ObjectCluster where hash = ocId
+instance Hashable Partition where hash = ptnId
 
 instance Eq ArgumentCluster where
   D2ArgumentCluster x y == D2ArgumentCluster z w = x == z && y == w
