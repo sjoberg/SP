@@ -1,12 +1,13 @@
 module SP.Score.Object where
 
 import Data.Function (on)
-import Data.List.Stream -- (foldl', intersect, nub)
 import SP.Cluster
 import SP.Score.Argument
 import SP.Score.Math
 import SP.Score.Score
-import Prelude hiding (length,map,null)
+
+import Data.List.Stream
+import Prelude hiding (length, map, null)
 
 -- | Scores an object cluster.
 objectScore :: ObjectCluster -> ObjectCluster -> ObjectScore

@@ -4,13 +4,16 @@ module SP.Preprocess.Compound --(mkCompounds,mkNnGrps,mkNerCompounds,mkNerGrps)
 import qualified Data.HashMap.Lazy as HashMap
 import qualified Data.IntMap as IntMap
 import Data.Function
-import Data.List (groupBy, intersect, intersperse, nubBy, sortBy)
 import Data.Maybe 
 import Data.Ord
-import Prelude hiding (concat)
 import SP.ByteString (pack, concat)
 import SP.Cluster
 import SP.Redirect
+
+import Data.List.Stream hiding (concat)
+import Prelude hiding ( (++), any, concat, concatMap, filter, head, last
+                      , length, map, notElem, null
+                      )
 
 mkCompounds :: Partition -> Partition
 mkCompounds = mkNnCompounds.mkNerCompounds
@@ -34,7 +37,8 @@ mkRedirectMap grps = HashMap.fromList $ concatMap mkRedirectList grps
 
 -- Merge a group of object clusters. 
 merge :: [ObjectCluster] -> ObjectCluster
-merge grp = ObjectCluster ((ocId.head) grp) [part] parIs chdIs sblIs
+merge grp = (head grp) { parts = [part], pars = parIs
+                       , chdn = chdIs,   sbls = sblIs }
   where -- Create part and form new token annotations.
         part = ((p.last) grp) {form = nform, lemma = nlemma, text = ntext}
         nform = concat [nlemma, pack ":", pos part]

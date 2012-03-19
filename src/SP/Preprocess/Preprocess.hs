@@ -3,15 +3,16 @@ module SP.Preprocess.Preprocess where
 import Control.Parallel.Strategies as P
 import Data.Function
 import Data.HashMap.Lazy hiding (filter, map, null)
-import Data.List.Stream
 import Data.Maybe 
 import Data.Ord
-import SP.ByteString (pack, ByteString)
+import SP.ByteString (pack, ByteString, seize)
 import SP.Config
 import SP.Cluster
 import SP.Preprocess.Compound
 import SP.Redirect
-import Prelude hiding (head,concatMap,take,map,filter,null)
+
+import Data.List.Stream
+import Prelude hiding (head, concatMap, take, map, filter, null)
 
 takePartitions :: Config -> [Partition] -> [Partition]
 takePartitions cfg = take $ artSize cfg
@@ -19,17 +20,17 @@ takePartitions cfg = take $ artSize cfg
 groupByPos :: [Partition] -> [[ObjectCluster]]
 groupByPos ptns = 
   let os = concatMap ocs ptns
-      opos = pos.head.parts
+      opos = seize 2 . pos . head . parts
   in groupBy ((==) `on` opos) (sortBy (comparing opos) os)
 
 groupByForm :: [Partition] -> [[ObjectCluster]]
 groupByForm ptns = 
   let os = concatMap ocs ptns
-      oform = form.head.parts
+      oform = form . head . parts
   in groupBy ((==) `on` oform) (sortBy (comparing oform) os)
 
 mergeCompounds :: [Partition] -> [Partition]
-mergeCompounds = P.parMap rseq (mkNnCompounds.mkNerCompounds)
+mergeCompounds = P.parMap rseq (mkNnCompounds . mkNerCompounds)
 
 filterEmpty :: [Partition] -> [Partition]
 filterEmpty ps = map rebuild ps

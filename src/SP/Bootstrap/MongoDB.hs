@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fno-warn-missing-fields #-}
+-- {-# LANGUAGE RecordWildCards, StandaloneDeriving, OverloadedStrings, FlexibleContexts, TupleSections, TypeSynonymInstances, MultiParamTypeClasses, FlexibleInstances, UndecidableInstances #-}
 module SP.Bootstrap.MongoDB (bootstrap) where
 
 import Control.DeepSeq
@@ -6,30 +6,45 @@ import Control.Monad.Trans (liftIO)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 import Database.MongoDB
-import Data.Array.IArray hiding (elems)
+import Data.Bson
+import Data.Bson.Binary
+import Data.Array.IArray hiding (elems, index)
 import Data.Function (on)
 import qualified Data.HashMap.Lazy as HM
 import Data.IntMap (keys, findWithDefault, singleton)
-import Data.List.Stream hiding (find)--(intersect, nub, union, foldl')
 import Data.Maybe
 import Data.UString (u)
 import SP.ByteString as B
 import SP.Cluster
 import SP.Config
 import SP.DeepSeq
-import Prelude hiding (take,concat,concatMap,map,length,(++),filter,notElem,unzip,zipWith,head)
+
+import Data.List.Stream hiding (find, sort) --(intersect, nub, union, foldl')
+import Prelude hiding ( take, concat, concatMap, map, length, (++), filter
+                      , notElem, unzip, zipWith, head, reverse
+                      )
 
 -- | Get the news items from Mongo. c is the callback function.
 bootstrap c = do                                   
-  pipe <- runIOE $ connect (host "127.0.0.1")
+  pipe <- runIOE $ connect (Host "127.0.0.1" $ PortNumber 27017)
   cfg <- getConfig
-  e <- access pipe master (u"articles") (findItems >>= mkDomain cfg c)
+  let order :: Order
+      order = [u"generated" =: (1 :: Int)]
+      col :: Collection
+      col = u"reuters.mergers"
+      idx :: Index
+      idx = index col order
+      selector :: Selector
+      selector = [u"status" =: u"ok", u"sentences" =: [u"$exists" =: True]]
+      get = rest =<< find (select selector col) {sort = order}
+      
+  e <- access pipe master (u"articles") (get >>= mkDomain cfg c)
   close pipe
   print e
 
 -- | Find news items.                                           
-findItems = rest =<< find (select q $ u"reuters.mergers")
-  where q = [u"status" =: u"ok", u"sentences" =: [u"$exists" =: True]]
+--findItems = rest =<< find (select q $ u"reuters.mergers")
+--  where q = [u"status" =: u"ok", u"sentences" =: [u"$exists" =: True]]
 
 -- Retrieve typed values from documents.                                        
 docStr :: String -> Document -> ByteString                                         
@@ -42,7 +57,7 @@ docInt lbl doc = typed $ valueAt (u lbl) doc
 mkDomain cfg c arts = liftIO $ c $ mkPtns cfg narts
   where narts = take (artSize cfg) arts -- Limit no. of articles.
 
-mkPtns cfg arts = go [] arts 1 1 1
+mkPtns cfg arts = reverse $ go [] arts 0 0 0
   where
   -- Ignored dependencies and POS tags
   ignDeps = depIgn cfg; ignPos = posIgn cfg
@@ -66,7 +81,7 @@ mkPtns cfg arts = go [] arts 1 1 1
 
     -- The object clusters and id of the last argument cluster.
     osAsOiAi :: (([ObjectCluster],[ArgumentCluster]),(Int,Int))
-    osAsOiAi = procSnts (docLst "sentences" art) [] [] 1 oi ai
+    osAsOiAi = procSnts (docLst "sentences" art) [] [] 0 oi ai
 
     -- Create argument and object clusters for sentences.
     procSnts :: [Document] -> [ObjectCluster] -> [ArgumentCluster] -> Int -> 
@@ -78,7 +93,7 @@ mkPtns cfg arts = go [] arts 1 1 1
       nai = ai + length nas
       noi = oi + ufoslen
       -- New argument clusters.
-      nas = nub.foldl' (++) [].HM.elems $ pm
+      nas = nub . foldl' (++) [] . HM.elems $ pm
       
       -- Object clusters --with argument clusters.
       nos = os ++ ufos --(HM.keys pm `union` HM.keys cm)
@@ -91,7 +106,7 @@ mkPtns cfg arts = go [] arts 1 1 1
       deps = filter (\d -> docStr "rel" d `notElem` ignDeps) (docLst "deps" s)
       ats = unzip $ zipWith mkArgumentCluster [ai..] deps
       mkArgumentCluster id dep = ((p,[ac]),(c,[ac]))
-        where ac = ArgumentCluster id pm cm rm
+        where ac = ArgumentCluster id pm cm rm (fromIntegral $ HM.size rm)
               pm = singleton (ocId p) 1; p = oa ! docInt "gov_index" dep
               cm = singleton (ocId c) 1; c = oa ! docInt "dept_index" dep
               rm = HM.singleton (docStr "rel" dep) 1
@@ -103,7 +118,7 @@ mkPtns cfg arts = go [] arts 1 1 1
       ufos = zipWith mkObjectCluster [oi..] (docLst "tokens" s)
       mkObjectCluster id tk = o
         where 
-        o = ObjectCluster id [part] pars chdn sbls 
+        o = ObjectCluster id [part] pars chdn sbls 1 
         part = Part {partId = id,  artId = pi,       sntId = si,   form = form,  
                      pos = g"pos", lemma = g"lemma", ner = g"ner", text = g"text"}
           where form = B.concat [g"lemma", pack ":", g"pos"]

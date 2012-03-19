@@ -2,7 +2,6 @@ module SP.Score.Scorer where
 
 import Control.Parallel.Strategies as P (rseq, parMap) 
 import Data.Function (on)
-import Data.List.Stream
 --import Data.List --(partition)
 import Data.List.Extras.Argmax (argmaxes,argmax)
 import Data.Ord (comparing)
@@ -10,12 +9,15 @@ import SP.Cluster
 import SP.Score.Math
 import SP.Score.Object
 import SP.Score.Score
-import Prelude hiding (any,concatMap,filter,map,null,(++),sum)
+
+import Data.List.Stream
+import Prelude hiding (any, concatMap, elem, filter, map, null, (++), sum)
 
 operatorScore :: Double -> (ObjectCluster,ObjectCluster) -> OperatorScore
 operatorScore ta (oi,oj) = OperatorScore value Merge objScr
   where
-  value = if null magta then 0 else tm
+  stop = null magta || (ocId oi `elem` objIds oj)
+  value = if stop then 0 else tm
   objScr = objectScore oi oj 
 
   -- M_a,>0

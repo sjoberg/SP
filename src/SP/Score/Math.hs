@@ -2,6 +2,7 @@
 module SP.Score.Math where
 
 import Data.Word (Word16,Word32)
+
 import Data.List.Stream
 import Prelude hiding (null)
 

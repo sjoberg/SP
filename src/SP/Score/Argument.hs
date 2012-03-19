@@ -12,15 +12,18 @@ import SP.ByteString
 import SP.Cluster
 import SP.Score.Math
 import SP.Score.Score
+
 import Data.List.Stream -- (find, foldl', intersect, sortBy)
-import Prelude hiding (any,take,head,null,sum,(++),filter,foldr,length)
+import Prelude hiding ( (++), any, concatMap, filter, foldr, head, length, map
+                      , length, null, take, sum, zipWith
+                      )
 
 -- | Degree 2 argument scores.
 argumentScore :: (ArgumentCluster -> ObjectMap) -> ArgumentCluster -> 
                  ArgumentCluster -> (Incidence -> Incidence -> ArgumentScore)
 argumentScore m ai aj = ArgumentScore value ai aj
   where
-  value = (srel + sobj) / 2
+  value = 0.5 * srel + 0.5 * sobj
 
   srel, sobj:: Double
   srel = meanBy (\k -> 1 - abs (get k ai - get k aj)) ks
@@ -57,9 +60,21 @@ argumentScores oi oj = parScrs ++ chdScrs ++ sblScrs
   as2 = scores $ d2ArgumentScore parScrs
   -- Builds scores using score function scrFun, and fetches the argument
   -- clusters from the incidence lists accessed by iacc, filter for values > 0.
-  scores scrFun iacc = [score | ih <- iacc oi, ik <- iacc oj, 
-                        let score = scrFun (fst ih) (fst ik) (snd ih) (snd ik),
-                        argScrVal score > 0]
+  scores scrFun iacc = 
+    let scores = concatMap (\ih -> map (\ik -> scr ih ik) (iacc oi)) (iacc oj)
+        scr ih ik = scrFun (fst ih) (fst ik) (snd ih) (snd ik)
+    in filter (\s -> argScrVal s > 0) scores
+
+                       -- Fast and inaccurate. 
+                       -- filter (\s -> argScrVal s > 0) $ zipWith (\ih ik -> scrFun (fst ih) (fst ik) (snd ih) (snd ik)) (iacc oi) (iacc oj)
+                       --
+                       -- Slow and accurate.
+                       --[score | ih <- iacc oi, ik <- iacc oj, 
+                       --  let score = scrFun (fst ih) (fst ik) (snd ih) (snd ik),
+                       --  argScrVal score > 0]
+
+perm :: [a] -> [a] -> [(a,a)]
+perm xs ys = concatMap (\x -> map (\y -> (x,y)) ys) xs
 
 -- | Greedy search for the best combination of argument scores.
 bestArgumentScores :: ObjectCluster -> ObjectCluster -> [ArgumentScore]

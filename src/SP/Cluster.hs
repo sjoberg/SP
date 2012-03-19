@@ -4,10 +4,14 @@ module SP.Cluster where
 import Data.Function
 import Data.Hashable
 import Data.Maybe
+import Data.Word
 import SP.ByteString
 import Data.IntMap (IntMap,keys)
 import Data.HashMap.Lazy (HashMap,fromList)
 import Text.Read
+
+import Data.List.Stream
+import Prelude hiding ((++), concatMap)
 
 data Partition = Partition { ptnId :: Id
                            , ocs :: [ObjectCluster]
@@ -17,6 +21,7 @@ data Partition = Partition { ptnId :: Id
 data ObjectCluster = ObjectCluster { ocId :: Id 
                                    , parts :: [Part]
                                    , pars, chdn, sbls :: IncidenceList
+                                   , samples :: Double
                                    } deriving (Read,Show)
 
 data Part = Part { partId, artId, sntId :: Id
@@ -25,7 +30,8 @@ data Part = Part { partId, artId, sntId :: Id
 
 data ArgumentCluster = ArgumentCluster { acId :: Id
                                        , parMap, chdMap :: ObjectMap
-                                       , relMap :: RelationMap}
+                                       , relMap :: RelationMap
+                                       , numArgs :: Double}
                      | D2ArgumentCluster { acFst, acSnd :: ArgumentCluster
                                          } deriving (Read,Show)
 
@@ -58,8 +64,9 @@ type IncidenceList = [(ArgumentCluster, Incidence)]
 type ObjectMap = IntMap Incidence
 type RelationMap = HashMap Relation Incidence
 
-parObjIds, chdObjIds, sblObjIds :: ObjectCluster -> [Id]
-parObjIds = concatMap (keys.parMap.fst).pars 
-chdObjIds = concatMap (keys.chdMap.fst).chdn
-sblObjIds = concatMap (keys.chdMap.acSnd.fst).sbls
+parObjIds, chdObjIds, sblObjIds, objIds :: ObjectCluster -> [Id]
+parObjIds = concatMap (keys . parMap . fst) . pars 
+chdObjIds = concatMap (keys . chdMap . fst) . chdn
+sblObjIds = concatMap (keys . chdMap . acSnd . fst) . sbls
+objIds o  = parObjIds o ++ chdObjIds o ++ sblObjIds o
 
