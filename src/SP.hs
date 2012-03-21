@@ -55,7 +55,7 @@ start partitions = liftIO $ do
   printf "Done.\n"
 
   printf "Clustering...\n"
-  completed <- iter 2 snt groupByPos (Low 0.9 0.6) 1 initial
+  completed <- iter 1 snt groupByPos (Low 0.9 0.6) 1 initial
   printf "Done.\n"
 
   exitSuccess
