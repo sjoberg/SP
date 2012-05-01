@@ -4,8 +4,6 @@ import qualified Data.ByteString.Char8 as B
 import Data.Function
 import Data.Hashable
 import Data.Ord (comparing)
-import Data.List.Stream
-import Prelude hiding (map)
 
 data ByteString = ByteString {bsStr :: B.ByteString, bsHsh :: !Int}
                   deriving (Read,Show)
@@ -14,8 +12,7 @@ instance Ord ByteString where
   compare = comparing bsStr
 
 instance Eq ByteString where
---x == y = bsHsh x == bsHsh y
-  (==) = (==) `on` bsStr
+  x == y = bsHsh x == bsHsh y && bsStr x == bsStr y
 
 instance Hashable ByteString where
   hash = bsHsh

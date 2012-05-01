@@ -8,6 +8,7 @@ import Data.ByteString.Char8 (ByteString)
 import Data.Either.Utils (forceEither)
 import Data.Function (on)
 import qualified Data.HashMap.Strict as HashMap
+import Data.List (groupBy, intersect, nub, partition, sortBy)
 import Data.List.Extras.Argmax (argmax)
 import Data.Maybe
 import Data.Ord (comparing)
@@ -22,11 +23,6 @@ import SP.Preprocess.Compound
 import SP.Preprocess.RegexCompoundConversion (toString, posIdMap, posSet)
 import SP.Redirect
 
--- Stream fusion
-import Data.List.Stream
-import Prelude hiding ( (++), drop, concat, concatMap, filter, head, length
-                      , map, null, tail, take, repeat, replicate, zip, zip3 )
-
 createRegexCompounds :: [Partition] -> [Partition]
 --createRegexCompounds :: [Partition] -> [String]
 createRegexCompounds partitions =
@@ -39,18 +35,18 @@ createRegexCompounds partitions =
       objPosSmb = ByteString.pack . toString posMap . pos . head . parts
       
       -- POS string to a one character ByteString.
-      strPosSmb :: String -> ByteString
-      strPosSmb = ByteString.pack . toString posMap . SP.ByteString.pack
+      p :: String -> ByteString
+      p = ByteString.pack . toString posMap . SP.ByteString.pack
+      -- Meta characters.
+      m = ByteString.pack
+      -- Replacement pos tags.
+      r = SP.ByteString.pack
 
       sentenceToString :: [ObjectCluster] -> ByteString
       sentenceToString = ByteString.concat . map objPosSmb
 
       -- Regexp tuples for replacements.
-      rxts = let m = ByteString.pack
-                 p = strPosSmb
-                 r = SP.ByteString.pack
-
-                 cd  = p"CD"
+      rxts = let cd  = p"CD"
                  dt  = p"DT"
                  jj  = p"JJ"  -- Adjective.
                  psc = p"IN"  -- Preposition or subordinating conjunction.
@@ -77,8 +73,8 @@ createRegexCompounds partitions =
                  seq contents = ByteString.concat (m"(":contents++[m")"])
                  or  contents = ByteString.concat (m"[":contents++[m"]"])
                  
-                 -- TO + IN
-                 tin = or [psc, to]
+                 -- TO + IN + rp
+                 tin = or [psc, to, rp]
                  -- JJ + NN
                  jjnn = or [nn, nnp, nns, jj]
                  -- Maybe rb
@@ -87,6 +83,8 @@ createRegexCompounds partitions =
                  tovb = seq [to, vb]
              in [ ([nnp, (?), jj, jj, (+), nn],                   r"NN",  2) 
                 , ([jj, or [nn, nnp, nns]],                       r"NN",  3)
+
+                , ([to, vb, tin],                                 r"VB", 1)     -- to spin off
 
                 , ([vbz, (?), rb, (*), jj, to, (?)],              r"VBZ", 1)
                 , ([vbd, (?), rb, (*), jj, to, (?)],              r"VBD", 1)
@@ -117,6 +115,8 @@ createRegexCompounds partitions =
                 , ([vbz, tovb, vbg],                              r"VBZ", 1)     -- plans to start preparing
                 , ([vbp, tovb, vbg],                              r"VBP", 1)     -- plan to start preparing
                 , ([vbd, tovb, vbg],                              r"VBD", 1)     -- planned to start preparing
+
+                , ([to, (?), vb, vbg],                            r"VB", 1)        -- to keep growing.
 
                 , ([vbz, rb, (*), psc, jjnn, to, vb],             r"VBZ", 1)     -- is on track to lift
                 , ([vbp, rb, (*), psc, jjnn, to, vb],             r"VBP", 1)     -- are on track to lift
@@ -173,10 +173,7 @@ createRegexCompounds partitions =
 
 
       regexps :: [(Regex, SP.ByteString.ByteString, Int)]
-      regexps = let m = ByteString.pack    -- Meta character
-                    p = strPosSmb          -- POS tag
-                    r = SP.ByteString.pack -- Replacement POS tag
-                    comp = let compOption = CompOption { caseSensitive = True
+      regexps = let comp = let compOption = CompOption { caseSensitive = True
                                                        , multiline = False
                                                        , rightAssoc = True
                                                        , newSyntax = False
@@ -279,8 +276,8 @@ getCmptbl repls =
 
       fromMaybes :: [Maybe Int] -> Int -> Int
       fromMaybes []     currId = currId + 1
-      fromMaybes (m:ms) currId = case m of Just i  -> i
-                                           Nothing -> fromMaybes ms currId
+      fromMaybes (m:ms) currId = fromMaybe (fromMaybes ms currId) m
+
       go :: [ObjectCluster] -> HashMap.HashMap Repl Int -> Int -> [[Repl]]
       go []     groupMap _      = toGroups groupMap
       go (o:os) groupMap lastId = 
@@ -289,7 +286,7 @@ getCmptbl repls =
             groupId :: Int
             groupId = fromMaybes maybeInts lastId
             maybeInts :: [Maybe Int]
-            maybeInts = map (flip HashMap.lookup groupMap) repls
+            maybeInts = map (`HashMap.lookup` groupMap) repls
             extra, newGroupMap :: HashMap.HashMap Repl Int
             extra = HashMap.fromList $ zip repls $ repeat groupId
             newGroupMap = HashMap.union groupMap extra

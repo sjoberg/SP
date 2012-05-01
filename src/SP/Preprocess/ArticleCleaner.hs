@@ -2,16 +2,12 @@
 module SP.Preprocess.ArticleCleaner where
 
 import Data.Function
+import Data.List (delete, groupBy, intersectBy, intersperse, nub, sortBy)
 import Data.List.Extras.Argmax (argmax)
 import Data.Ord
 
 import SP.Cluster
 import qualified SP.ByteString as B
-
--- Stream fusion
-import Data.List.Stream
-import Prelude hiding ( concat, concatMap, filter, head, length, map, notElem
-                      , null, tail, zipWith )
 
 type Sentence = [ObjectCluster]
 type SentenceTuple = ((Int,Int),B.ByteString)

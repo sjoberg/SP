@@ -1,22 +1,17 @@
-module SP.Preprocess.Compound --(mkCompounds,mkNnGrps,mkNerCompounds,mkNerGrps) 
-  where
+module SP.Preprocess.Compound where
 
 import qualified Data.HashMap.Lazy as HashMap
 import qualified Data.IntMap as IntMap
 import Data.Function
+import Data.List (groupBy, intersect, intersperse, nubBy, sortBy)
 import Data.Maybe 
 import Data.Ord
-import SP.ByteString (pack, concat)
+import qualified SP.ByteString as B
 import SP.Cluster
 import SP.Redirect
 
-import Data.List.Stream hiding (concat)
-import Prelude hiding ( (++), any, concat, concatMap, filter, head, last
-                      , length, map, notElem, null
-                      )
-
 mkCompounds :: Partition -> Partition
-mkCompounds = mkNnCompounds.mkNerCompounds
+mkCompounds = mkNnCompounds . mkNerCompounds
 
 mkNnCompounds :: Partition -> Partition
 mkNnCompounds ptn | null grps = ptn
@@ -40,11 +35,11 @@ merge :: [ObjectCluster] -> ObjectCluster
 merge grp = (head grp) { parts = [part], pars = parIs
                        , chdn = chdIs,   sbls = sblIs }
   where -- Create part and form new token annotations.
-        part = ((p.last) grp) {form = nform, lemma = nlemma, text = ntext}
-        nform = concat [nlemma, pack ":", pos part]
-        nlemma = concat.intersperse (pack "_") $ map (lemma.p) grp
-        ntext = concat.intersperse (pack "_") $ map (text.p) grp
-        p = head.parts
+        part = ((p . last) grp) {form = nform, lemma = nlemma, text = ntext}
+        nform = B.concat [nlemma, B.pack ":", pos part]
+        nlemma = B.concat . intersperse (B.pack "_") $ map (lemma . p) grp
+        ntext = B.concat . intersperse (B.pack "_") $ map (text . p) grp
+        p = head . parts
 
         -- Remove argument clusters pointing to the same object cluster
         -- in the group. Remove multiple argument clusters.
@@ -56,8 +51,8 @@ merge grp = (head grp) { parts = [part], pars = parIs
           where oacs :: IncidenceList
                 oacs = filter f allSbls 
                 f :: (ArgumentCluster, Incidence) -> Bool
-                f (a,_) = null $ [(intKey.parMap.acFst) a, 
-                                  (intKey.chdMap.acSnd) a] 
+                f (a,_) = null $ [(intKey . parMap . acFst) a, 
+                                  (intKey . chdMap . acSnd) a] 
                                   `intersect` 
                                   map ocId grp
                 cmp2 (x,_) (y,_) = cmp parMap (acFst x) (acFst y) && 
@@ -67,12 +62,12 @@ merge grp = (head grp) { parts = [part], pars = parIs
         -- Get all argument clusters via method acc, that aren't pointing
         -- within the group via object map m.
         acs acc m = [a | i <- concatMap acc grp, let a = fst i, inGrp a]
-          where inGrp a = (intKey.m) a `notElem` map ocId grp
+          where inGrp a = (intKey . m) a `notElem` map ocId grp
         -- Compare two incidence tuples with respect to where their 
         -- object clusters are pointing via object map m, and their 
         -- relation.
-        cmp m ai aj = (intKey.m) ai == (intKey.m) aj && 
-                      (key.relMap) ai == (key.relMap) aj
+        cmp m ai aj = (intKey . m) ai == (intKey . m) aj && 
+                      (key . relMap) ai == (key . relMap) aj
         intKey = head . IntMap.keys; key = head . HashMap.keys
 
 {-mkNerGrps :: [ObjectCluster] -> [[ObjectCluster]]
@@ -85,13 +80,13 @@ mkNerGrps ocs = filter (\g -> (cner.head) g /= pack "O" && length g > 1) groups
         cner = ner.head.parts -- Ner of the first (only) part in a cluster.
 -}
 
-mkNerGrps ocs = filter (\g -> (cner.head) g /= pack "O" && length g > 1) groups
+mkNerGrps ocs = filter (\g -> (cner . head) g /= B.pack "O" && length g > 1) groups
   where groups = groupBy pred $ sortBy (comparing ocId) ocs
         pred oi oj = let eqNer = (==) `on` cner
-                         eqSnt = (==) `on` sntId.head.parts
-                         eqArt = (==) `on` artId.head.parts
+                         eqSnt = (==) `on` sntId . head . parts
+                         eqArt = (==) `on` artId . head . parts
                      in eqNer oi oj && eqSnt oi oj && eqArt oi oj
-        cner = ner.head.parts
+        cner = ner . head . parts
 
 {-
 mkNnGrps :: [ObjectCluster] -> [[ObjectCluster]]
@@ -107,13 +102,15 @@ mkNnGrps ocs = groupBy pred $ sortBy (comparing ocId) $ filter oHasRelNn ocs
 -}
 
 mkNnGrps :: [ObjectCluster] -> [[ObjectCluster]]
-mkNnGrps ocs = map (sortBy (comparing ocId).getWithChdn).filter oHasRelNn $ ocs
+mkNnGrps ocs = map (sortBy (comparing ocId) . getWithChdn) 
+             . filter oHasRelNn $ ocs
   where oHasRelNn o = any aHasRelNn (map fst $ chdn o)
-        aHasRelNn a = isJust $ HashMap.lookup (pack "nn") (relMap a)
+        aHasRelNn a = isJust $ HashMap.lookup (B.pack "nn") (relMap a)
         aHasO a o m = isJust $ IntMap.lookup (ocId o) (m a)
         idOcMap = IntMap.fromList $ map (\o -> (ocId o,o)) ocs
-        getWithChdn x = x:(concatMap getWithChdn $ chdObjs x)
-        chdObjs = idsToObjs.concatMap (IntMap.keys.chdMap).filter aHasRelNn.map fst.chdn
+        getWithChdn x = x : concatMap getWithChdn (chdObjs x)
+        chdObjs = idsToObjs . concatMap (IntMap.keys . chdMap) 
+                . filter aHasRelNn . map fst . chdn
         idsToObjs = map $ \id -> fj "NnGrps" $ IntMap.lookup id idOcMap
 
 fj s m | m == Nothing = error s

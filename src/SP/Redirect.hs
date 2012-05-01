@@ -3,14 +3,12 @@ module SP.Redirect where
 
 import Control.Arrow (first)
 import Control.DeepSeq
+import Data.List
 import Data.Maybe
 import Data.HashMap.Lazy as HashMap hiding (filter, map)
 import qualified Data.IntMap as IntMap
 import SP.Cluster
 import SP.DeepSeq
-
-import Data.List.Stream
-import Prelude hiding (concatMap,filter,map,notElem,unzip,(++))
 
 -- | Redirects object clusters and argument clusters in a partion
 -- given a map from object clusters to delete, to new ones.

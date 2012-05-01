@@ -5,6 +5,7 @@ import Data.Function
 import Data.Hashable
 import Data.HashMap.Lazy (keys, lookupDefault)
 import Data.IntMap (intersectionWith, elems)
+import Data.List (foldl', find, intersect, sortBy)
 import Data.Maybe
 import Data.Ord
 import qualified Data.Set as Set
@@ -13,37 +14,37 @@ import SP.Cluster
 import SP.Score.Math
 import SP.Score.Score
 
-import Data.List.Stream -- (find, foldl', intersect, sortBy)
-import Prelude hiding ( (++), any, concatMap, filter, foldr, head, length, map
-                      , length, null, take, sum, zipWith
-                      )
-
 -- | Degree 2 argument scores.
-argumentScore :: (ArgumentCluster -> ObjectMap) -> ArgumentCluster -> 
-                 ArgumentCluster -> (Incidence -> Incidence -> ArgumentScore)
-argumentScore m ai aj = ArgumentScore value ai aj
+argumentScore :: (ArgumentCluster -> ObjectMap) 
+              -> ArgumentCluster 
+              -> ArgumentCluster 
+              -> ArgumentRelation -> Incidence -> Incidence -> ArgumentScore
+argumentScore m ai aj = ArgumentScore value Merge ai aj
   where
-  value = 0.5 * srel + 0.5 * sobj
+  value = 0.5 * scoreRelation ai aj + 0.5 * sobj
 
-  srel, sobj:: Double
-  srel = meanBy (\k -> 1 - abs (get k ai - get k aj)) ks
-    where ks = (intersect `on` (keys.relMap)) ai aj
-          get k ak = lookupDefault 0 k $ relMap ak
-  --srel | null ks   = 0
-  --     | otherwise = --1 - 1 / (fromIntegral.length) ks * 
-                     --foldl' (\r k -> r + abs (get k ai - get k aj)) 0 ks
-
-  sobj = mean es -- | null es   = 0
+  sobj :: Double
+  sobj = mean es
     where es = elems $ intersectionWith (\x y -> 1 - abs(x - y)) (m ai) (m aj)
-       -- | otherwise = --1 - 1 / cardinality es * sum es
-       -- 1 - mean es
+
+-- | Score with respect to relation.
+scoreRelation :: ArgumentCluster -> ArgumentCluster -> Double
+scoreRelation ai@ArgumentCluster {} aj@ArgumentCluster {} = 
+  let rels = (intersect `on` (keys . relMap)) ai aj
+      get rel ak = lookupDefault 0 rel $ relMap ak
+  in meanBy (\k -> 1 - abs (get k ai - get k aj)) rels
+scoreRelation D2ArgumentCluster {acFst = aik, acSnd = ail}
+         D2ArgumentCluster {acFst = ajk, acSnd = ajl}
+  = (scoreRelation aik ajk + scoreRelation ail ajl) / 2
+scoreRelation _ _ = 0
 
 -- | Degree 2 argument scores. Currently a bit tailored to siblings.
-d2ArgumentScore :: [ArgumentScore] -> ArgumentCluster -> ArgumentCluster -> 
-                   (Incidence -> Incidence -> ArgumentScore)
-d2ArgumentScore ss ai aj = ArgumentScore value ai aj 
+d2ArgumentScore :: [ArgumentScore] -> ArgumentCluster -> ArgumentCluster 
+                -> ArgumentRelation -> Incidence -> Incidence -> ArgumentScore
+d2ArgumentScore ss ai aj = ArgumentScore value Merge ai aj 
   where value = hmean2 d1ScrVal d2ScrVal
-        d2ScrVal = argScrVal $ argumentScore chdMap (acSnd ai) (acSnd aj) 0 0
+        d2ScrVal = argScrVal 
+                 $ argumentScore chdMap (acSnd ai) (acSnd aj) ChildArgument 0 0
         d1ScrVal = toVal $ find matches ss -- Find degree 1 scores.
           where matches s = a1 s == acFst ai && a2 s == acFst aj
                 toVal (Just s) = argScrVal s
@@ -53,25 +54,27 @@ d2ArgumentScore ss ai aj = ArgumentScore value ai aj
 argumentScores :: ObjectCluster -> ObjectCluster -> [ArgumentScore]
 argumentScores oi oj = parScrs ++ chdScrs ++ sblScrs
   where
-  parScrs = as parMap pars; chdScrs = as chdMap chdn; sblScrs = as2 sbls
   -- Degree 1 argument scores.
-  as m = scores $ argumentScore m
+  argScrs mapf = scores $ argumentScore mapf
+  parScrs, chdScrs :: [ArgumentScore]
+  parScrs = argScrs parMap pars ParentArgument
+  chdScrs = argScrs chdMap chdn ChildArgument
   -- Degree 2 argument scores.
-  as2 = scores $ d2ArgumentScore parScrs
+  argScrs2 = scores $ d2ArgumentScore parScrs
+
+  sblScrs :: [ArgumentScore]
+  sblScrs = argScrs2 sbls SiblingArgument
   -- Builds scores using score function scrFun, and fetches the argument
   -- clusters from the incidence lists accessed by iacc, filter for values > 0.
-  scores scrFun iacc = 
-    let scores = concatMap (\ih -> map (\ik -> scr ih ik) (iacc oi)) (iacc oj)
-        scr ih ik = scrFun (fst ih) (fst ik) (snd ih) (snd ik)
-    in filter (\s -> argScrVal s > 0) scores
+  scores scrFun incs argRel = 
+    let scores = concatMap (\ih -> map (score ih) (incs oi)) (incs oj)
+        score ih ik = scrFun (fst ih) (fst ik) argRel (snd ih) (snd ik)
+    in filter (\score -> argScrVal score > 0) scores
 
-                       -- Fast and inaccurate. 
-                       -- filter (\s -> argScrVal s > 0) $ zipWith (\ih ik -> scrFun (fst ih) (fst ik) (snd ih) (snd ik)) (iacc oi) (iacc oj)
-                       --
-                       -- Slow and accurate.
-                       --[score | ih <- iacc oi, ik <- iacc oj, 
-                       --  let score = scrFun (fst ih) (fst ik) (snd ih) (snd ik),
-                       --  argScrVal score > 0]
+       -- Fast and inaccurate. 
+       -- filter (\s -> argScrVal s > 0) 
+       --   $ zipWith (\ih ik -> scrFun (fst ih) (fst ik) (snd ih) (snd ik)) 
+       --   (iacc oi) (iacc oj)
 
 perm :: [a] -> [a] -> [(a,a)]
 perm xs ys = concatMap (\x -> map (\y -> (x,y)) ys) xs

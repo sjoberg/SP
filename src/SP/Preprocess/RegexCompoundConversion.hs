@@ -2,15 +2,12 @@ module SP.Preprocess.RegexCompoundConversion (toString, posSet, posIdMap) where
 
 import Data.Char
 import Data.Hashable
+import Data.List (nub)
 import Data.Maybe
 import qualified Data.HashMap.Lazy as HashMap
 import Data.HashMap.Lazy (HashMap, fromList)
 import SP.Cluster
 import SP.ByteString
-
--- Stream fusion.
-import Data.List.Stream
-import Prelude hiding ((++), concatMap, head, map, zip)
 
 -- Converts a byte string to a one character string.
 toString :: HashMap ByteString Int -> ByteString -> String
@@ -26,7 +23,7 @@ idPosMap = fromList . zip indices
 
 -- Generates a POS to ID map from a list of POS tags.
 posIdMap :: [ByteString] -> HashMap ByteString Int
-posIdMap = fromList . (flip zip) indices
+posIdMap = fromList . flip zip indices
 
 -- | The part of an object cluster.
 part :: ObjectCluster -> Part

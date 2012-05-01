@@ -12,17 +12,13 @@ import Data.Array.IArray hiding (elems, index)
 import Data.Function (on)
 import qualified Data.HashMap.Lazy as HM
 import Data.IntMap (keys, findWithDefault, singleton)
+import Data.List (foldl', nub)
 import Data.Maybe
 import Data.UString (u)
 import SP.ByteString as B
 import SP.Cluster
 import SP.Config
 import SP.DeepSeq
-
-import Data.List.Stream hiding (find, sort) --(intersect, nub, union, foldl')
-import Prelude hiding ( take, concat, concatMap, map, length, (++), filter
-                      , notElem, unzip, zipWith, head, reverse
-                      )
 
 -- | Get the news items from Mongo. c is the callback function.
 bootstrap c = do                                   

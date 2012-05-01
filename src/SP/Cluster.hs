@@ -10,9 +10,6 @@ import Data.IntMap (IntMap,keys)
 import Data.HashMap.Lazy (HashMap,fromList)
 import Text.Read
 
-import Data.List.Stream
-import Prelude hiding ((++), concatMap)
-
 data Partition = Partition { ptnId :: Id
                            , ocs :: [ObjectCluster]
                            , acs :: [ArgumentCluster]
@@ -50,6 +47,7 @@ instance Hashable ArgumentCluster where
   hash (D2ArgumentCluster x y) = acId x `combine` acId y
   hash ArgumentCluster {acId = acId} = acId
 
+-- For serialization.
 instance (Read k, Hashable k, Ord k, Read a) => Read (HashMap k a) where
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP

@@ -2,16 +2,14 @@ module SP.Score.Object where
 
 import Data.Function (on)
 import SP.Cluster
+import Data.List (foldl', intersect, nub)
 import SP.Score.Argument
 import SP.Score.Math
 import SP.Score.Score
 
-import Data.List.Stream
-import Prelude hiding (length, map, null)
-
 -- | Scores an object cluster.
 objectScore :: ObjectCluster -> ObjectCluster -> ObjectScore
-objectScore oi oj = ObjectScore oi oj value argumentScores
+objectScore oi oj = ObjectScore oi oj value --argumentScores
   where 
   value = let inc form forms = 1 / (fromIntegral.length) forms * occurence form forms
               occurence f1 = foldl' (\t f2 -> if f1 == f2 then t + 1 else t) 0
@@ -21,7 +19,7 @@ objectScore oi oj = ObjectScore oi oj value argumentScores
               deltaSum sum f = sum + abs(((-) `on` inc f) formSeqi formSeqj)
               result = 1 - 1 / cardinality formSet * foldl' deltaSum 0 formSet
           in if null formSet then 0 else result
-  argumentScores = bestArgumentScores oi oj
+--argumentScores = bestArgumentScores oi oj
 
 -- | Independence of argument scores.
 isIndependentOf :: ObjectScore -> ObjectScore -> Bool

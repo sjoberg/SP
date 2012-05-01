@@ -1,8 +1,8 @@
 module SP.Preprocess.Preprocess where
 
 import Control.Parallel.Strategies as P
-import Data.Function
-import Data.HashMap.Lazy hiding (filter, map, null)
+import Data.Function (on)
+import Data.List
 import Data.Maybe 
 import Data.Ord
 import SP.ByteString (pack, ByteString, seize)
@@ -10,9 +10,6 @@ import SP.Config
 import SP.Cluster
 import SP.Preprocess.Compound
 import SP.Redirect
-
-import Data.List.Stream
-import Prelude hiding (head, concatMap, take, map, filter, null)
 
 takePartitions :: Config -> [Partition] -> [Partition]
 takePartitions cfg = take $ artSize cfg

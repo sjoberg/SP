@@ -2,6 +2,9 @@ module SP.Merge where
 
 import qualified Control.Parallel.Strategies as Parallel
 import Control.Arrow
+import qualified Data.HashMap.Lazy as HashMap
+import qualified Data.IntMap as IntMap
+import Data.List (foldl1', foldl')
 import Data.Maybe
 import Data.Function
 import Data.Hashable
@@ -11,15 +14,7 @@ import SP.Cluster
 import SP.Redirect
 import SP.Score.Score
 
--- Stream fusion
-import Data.List.Stream as Stream
-import Prelude hiding ((++), concat, concatMap, elem, filter, map, notElem, 
-                       null, replicate)
-
--- Maps
-import qualified Data.HashMap.Lazy as HashMap
-import qualified Data.IntMap as IntMap
-
+{-
 -- | Merge some, among a list of partitions, by object scores.
 mergePartitions :: [ObjectScore] -> [Partition] -> [Partition]
 mergePartitions scores partitions =
@@ -33,11 +28,11 @@ mergePartitions scores partitions =
       -- Pairs for creating a node to node map.
       pairs :: [(Partition,Partition)]
       pairs = let find a s = fromJust $ HashMap.lookup (a s) objPtn
-                  unprocessed = map (\s -> (find o1 s, find o2 s)) scores
-                  filter = Stream.filter $ \(x,y) -> x /= y
+                  unprocessed = map (find o1 &&& find o2) scores
+                  filter = Stream.filter $ uncurry (/=)
                   nub = nubBy $ \(x,y) (z,w) -> (x == z && y == w)
                                              || (x == w && y == z)
-              in nub.filter $ unprocessed
+              in nub . filter $ unprocessed
 
       -- Create a map from nodes to nodes.
       edgeMap :: HashMap.HashMap Partition [Partition]
@@ -50,9 +45,9 @@ mergePartitions scores partitions =
       -- Create groups and merge them, to create a list of partitions.
       createGroups :: [(Partition,Partition)] -> [[Partition]] -> [Partition]
       createGroups []            groups = map merge groups
-      createGroups ((p,q):pairs) groups = case continue of
-        False -> createGroups pairs $ group : groups
-        True  -> createGroups pairs groups
+      createGroups ((p,q):pairs) groups = 
+        if continue then createGroups pairs groups
+                    else createGroups pairs $ group : groups
         where continue :: Bool
               continue = null . intersect [p,q] $ concat groups
               group :: [Partition]
@@ -75,15 +70,16 @@ mergePartitions scores partitions =
       -- All undirected partitions.
       partitions = createGroups pairs []
 
-  in Parallel.parMap Parallel.rseq ((flip redirect) objMap) partitions
+  in Parallel.parMap Parallel.rseq (`redirect` objMap) partitions
+-}
 
-mergePartitionsSimple :: [ObjectScore] -> [Partition] -> [Partition]
+mergePartitionsSimple :: [OperatorScore] -> [Partition] -> [Partition]
 mergePartitionsSimple scores partitions = 
   
   let -- Object map to be used for redirection.
       objMap :: HashMap.HashMap ObjectCluster ObjectCluster
-      objMap = let append ts s = let new = mergeObjClrs s
-                                 in (o1 s,new):(o2 s,new):ts 
+      objMap = let append ts s = let new = mergeObjClrs (objScr s) (argScrs s)
+                                 in (o1 $ objScr s,new):(o2 $ objScr s,new):ts 
                in HashMap.fromList . foldl' append [] $ scores
 
       partition = merge partitions
@@ -100,8 +96,8 @@ fromListWith :: (Eq k, Hashable k) => (v -> v -> v) -> [(k,v)]
 fromListWith f = foldl' (\m (k,v) -> HashMap.insertWith f k v m) HashMap.empty
 
 -- | Merge two object clusters.
-mergeObjClrs :: ObjectScore -> ObjectCluster
-mergeObjClrs ObjectScore {o1 = oi, o2 = oj, objArgScrs = argScrs} = 
+mergeObjClrs :: ObjectScore -> [ArgumentScore] -> ObjectCluster
+mergeObjClrs ObjectScore {o1 = oi, o2 = oj} argScrs = 
 
   let -- Build incidence tuples for argument clusters.
       buildIncidences proband = 

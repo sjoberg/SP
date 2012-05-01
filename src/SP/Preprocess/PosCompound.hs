@@ -6,6 +6,7 @@ import qualified Data.ByteString.Char8 as B
 import Data.Either.Utils (forceEither)
 import Data.Function (on)
 import Data.HashMap.Strict (fromList)
+import Data.List (groupBy)
 import SP.ByteString (bsStr, pack, ByteString)
 import SP.Cluster
 import SP.Preprocess.Compound
@@ -14,10 +15,6 @@ import Text.Regex.Base.RegexLike (MatchArray)
 import Text.Regex.TDFA.ByteString
 import Text.Regex.TDFA.Common hiding (on)
 
--- Stream fusion.
-import Data.List.Stream
-import Prelude hiding (concat, concatMap, drop, head, map, repeat, take, zip)
-
 -- | Replacements.
 replacements = [ ("VBZ VBN TO", "1")
                , ("VBN IN", "VBN")
@@ -25,20 +22,6 @@ replacements = [ ("VBZ VBN TO", "1")
 
 createPosCompounds :: [Partition] -> [Partition]
 createPosCompounds = map $ \p -> redirect p $ fromList . objList $ p
-
-mjau ps = fromList . objList . head $ ps
-
-
--- | Tuple list for object clusters.
---objListu :: Partition -> [(ObjectCluster,ObjectCluster)]
-objListu partition = let sentences = partitionSentences partition
-                         sntPosPair = map $ \s -> (createPosString s,s)
-                         regexReplacements = compileReplacements replacements
-                     in map ocId $ ocs partition
---                     in  [ p
---                         | (regex,r) <- regexReplacements
---                         , (p,s) <- sntPosPair sentences
---                         , let slices = toSlices regex p s]
 
 -- | Tuple list for object clusters.
 objList :: Partition -> [(ObjectCluster,ObjectCluster)]
