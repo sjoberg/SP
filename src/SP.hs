@@ -1,6 +1,10 @@
 import Control.Arrow
 import Control.Monad.Trans (liftIO)
 import Data.Function
+import qualified Data.IntMap as IntMap
+import Data.IntMap (IntMap)
+import qualified Data.HashMap.Lazy as HashMap
+import Data.HashMap.Lazy (HashMap)
 import Data.Ord
 import SP.ByteString
 import SP.Cluster
@@ -16,14 +20,9 @@ import SP.Print
 import SP.Score.Score
 import SP.Score.Scorer
 import Text.Printf (printf)
+import System.CPUTime
 import System.Exit
 import Data.Maybe (fromJust)
-
-import qualified Data.IntMap as IntMap
-import Data.IntMap (IntMap)
-
-import qualified Data.HashMap.Lazy as HashMap
-import Data.HashMap.Lazy (HashMap)
 
 main :: IO ()
 main = bootstrap start
@@ -32,9 +31,13 @@ start :: [Partition] -> IO ()
 start partitions = liftIO $ do
   config <- getConfig
 
-  let cleaned = cleanArticles partitions
+  let -- Remove duplicates.
+      cleaned = cleanArticles partitions
+      -- Merge compounds.
       merged = mergeCompounds . createRegexCompounds $ cleaned
+      -- Remove object clusters empty of argument clusters.
       preprocessed = filterEmpty merged
+      
       arts = toArticles merged
       snt :: Part -> String
       snt part = (arts !! artId part) !! sntId part
@@ -66,6 +69,7 @@ iter :: Int -> (Part -> String) -> ([Partition] -> [[ObjectCluster]])
      -> SchmittTrigger -> Int -> Bool -> [Partition] -> IO [Partition]
 iter sampleLimit snt groupFcn trigger n isa partitions = liftIO $ do
   printf "Starting iteration %d.\n" n
+  start <- getCPUTime
 
   let 
       removeEmpty :: [[ObjectCluster]] -> [[ObjectCluster]]
@@ -74,8 +78,13 @@ iter sampleLimit snt groupFcn trigger n isa partitions = liftIO $ do
       groups :: [[ObjectCluster]]
       groups = removeEmpty . filterPronouns . groupFcn $ partitions
 
+      paramSet = ParamSet { wm = 0, wa = -3, wc = 0
+                          , tm = 0.5, ta = 0.5, tc = 0.5
+                          , useIsa = isa, printMarks = False
+                          }
+
       -- Best scores.
-      bestScores = maxOperatorScores isa groups
+      bestScores = maxOperatorScores paramSet groups
 
       -- New partitions.
       newPartitions = mergePartitionsSimple bestScores partitions
@@ -86,8 +95,18 @@ iter sampleLimit snt groupFcn trigger n isa partitions = liftIO $ do
       -- Function for printing scores and continue iterating.
       doNextRound trigger = do 
         mapM_ (printScore snt) bestScores
+        mapM_ (printScoreWithMarks paramSet) bestScores
+
+        -- Print elapsed time in seconds.
+        end <- getCPUTime
+        let elapsed :: Double
+            elapsed = fromIntegral (end - start) / 10^9
+        printf "Time elapsed: %.2f s\n" $ elapsed / 10^3
+
+        -- Start the next iteration
         iter sampleLimit snt groupFcn trigger (n + 1) isa newPartitions
 
+  
   -- Enter next iteration or stop iterating.
   case trigger of
     Low th tl  -> doNextRound (if pv >= th then High th tl else trigger)
@@ -95,7 +114,7 @@ iter sampleLimit snt groupFcn trigger n isa partitions = liftIO $ do
                               else return partitions
 
 filterPronouns = filter allow
-  where allow o = let headPartPos = pos.head.parts.head $ o
+  where allow o = let headPartPos = pos . head . parts . head $ o
                   in headPartPos `notElem` map pack ["PR", "CC", "WP", "DT"]
 
 data SchmittTrigger = High Double Double | Low Double Double

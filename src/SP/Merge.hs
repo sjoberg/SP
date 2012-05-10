@@ -126,10 +126,12 @@ mergeObjClrs ObjectScore {o1 = oi, o2 = oj} argScrs =
       -- Argument clusters to merge from oi and oj respectively.
       (mi,mj) = foldl' (\(x,y) n -> (a1 n:x, a2 n:y)) ([],[]) argScrs
 
-  in oi { parts = newParts
-        , pars  = newParents
-        , chdn  = newChildren
-        , sbls  = newSiblings }
+  in oi { parts  = newParts
+        , pars   = newParents
+        , chdn   = newChildren
+        , sbls   = newSiblings
+        , incSum = sum . snd . unzip $ newParents ++ newChildren ++ newSiblings
+        }
 
 -- | Merge two argument clusters.
 mergeArgClrs :: ObjectCluster -> ObjectCluster -> ArgumentScore 

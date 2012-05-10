@@ -19,6 +19,7 @@ data ObjectCluster = ObjectCluster { ocId :: Id
                                    , parts :: [Part]
                                    , pars, chdn, sbls :: IncidenceList
                                    , samples :: Double
+                                   , incSum :: Double
                                    } deriving (Read,Show)
 
 data Part = Part { partId, artId, sntId :: Id
@@ -68,3 +69,9 @@ chdObjIds = concatMap (keys . chdMap . fst) . chdn
 sblObjIds = concatMap (keys . chdMap . acSnd . fst) . sbls
 objIds o  = parObjIds o ++ chdObjIds o ++ sblObjIds o
 
+-- Sum of incidences of argument clusters in an object cluster.
+incidenceSum :: ObjectCluster -> Double
+incidenceSum o = sum . snd . unzip $ pars o ++ chdn o ++ sbls o
+
+partTexts :: ObjectCluster -> [String]
+partTexts =  map (unpack . text) . parts

@@ -12,9 +12,10 @@ instance NFData Partition where
   rnf (Partition _ ocs acs) = rnf ocs `seq` rnf acs
 
 instance NFData ObjectCluster where
-  rnf (ObjectCluster _ parts pars chdn sbls _ ) = (rnf parts `seq` rnf pars) 
-                                                  `seq`
-                                                  (rnf chdn `seq` rnf sbls)
+  rnf (ObjectCluster _ parts pars chdn sbls _ is) = (rnf parts `seq` rnf pars) 
+                                                    `seq`
+                                                    (rnf chdn `seq` rnf sbls)
+                                                    `seq` rnf is
 
 instance NFData ArgumentCluster where
   rnf (ArgumentCluster _ pm cm rm na) = rnf rm `seq` rnf na -- `seq` (rnf pm `seq` rnf cm)
@@ -27,3 +28,5 @@ instance NFData Part where
 instance NFData ByteString where
   rnf (ByteString _ h) = rnf h
 
+--instance NFData OperatorScore where
+--  rnf (

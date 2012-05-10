@@ -52,17 +52,8 @@ objRefMap score = case rel score of ParentArgument  -> parMap
 type Threshold = Double
 type Weight = Double
 
-data ParamSet = ParamSet {tm, ta, tc :: Threshold, wm, wa, wc :: Weight}
-
--- Sum of incidences of argument clusters in an object cluster.
-incidenceSum :: ObjectCluster -> Double
-incidenceSum o = sum . snd . unzip $ pars o ++ chdn o ++ sbls o
-
--- | Match mark.
-matchMark :: Double -> Double -> [ArgumentScore] -> Double
-matchMark iSum1 iSum2 = let f, g :: ArgumentScore -> Double
-                            f s = argScrVal s * i1 s / iSum1
-                            g s = argScrVal s * i2 s / iSum2
-                            sum = foldl' (\(t,u) s -> (t + f s, u + g s)) (0,0)
-                        in uncurry hmean2 . sum 
+data ParamSet = ParamSet { tm, ta, tc :: Threshold
+                         , wm, wa, wc :: Weight
+                         , useIsa, printMarks :: Bool
+                         }
 

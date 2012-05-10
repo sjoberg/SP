@@ -67,3 +67,8 @@ sumBy f = foldl' (\t e -> t + f e) 0
 argmax :: (Ord b) => (a -> b) -> [a] -> a
 argmax f = foldl1' $ \x y -> if f x >= f y then x else y
 
+-- | Exponential prior, I hope.
+prior :: Double -> Double -> Double
+prior 0 x = x
+prior p x = (exp ((-p) * x) - 1) / (exp (-p) - 1)
+

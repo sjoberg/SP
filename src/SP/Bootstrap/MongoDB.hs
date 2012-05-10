@@ -114,7 +114,7 @@ mkPtns cfg arts = reverse $ go [] arts 0 0 0
       ufos = zipWith mkObjectCluster [oi..] (docLst "tokens" s)
       mkObjectCluster id tk = o
         where 
-        o = ObjectCluster id [part] pars chdn sbls 1 
+        o = ObjectCluster id [part] pars chdn sbls 1 (incidenceSum o) 
         part = Part {partId = id,  artId = pi,       sntId = si,   form = form,  
                      pos = g"pos", lemma = g"lemma", ner = g"ner", text = g"text"}
           where form = B.concat [g"lemma", pack ":", g"pos"]

@@ -1,6 +1,7 @@
 module SP.Print where
 
 import Control.Arrow
+import Control.DeepSeq
 import Control.Monad.Trans (liftIO)
 import Data.Function
 import Data.List
@@ -74,6 +75,18 @@ printScore snt score = do
 --mapM_ (print . snt) (parts . o2 . objScr $ score)
   
   putStrLn "\n"
+
+printScoreWithMarks :: ParamSet -> OperatorScore -> IO ()
+printScoreWithMarks paramSet opScr = 
+  let oi = o1 . objScr $ opScr
+      oj = o2 . objScr $ opScr
+      ps = paramSet {printMarks = True}
+      operator = op $ operatorScore ps (oi, oj)
+  in if useIsa ps 
+       then do print $ textParts oi
+               print $ textParts oj
+               putStrLn $ "Elected: " ++ show operator ++ "\n"
+       else return ()
 
 -- | Print an argument score.
 printArgScore :: ArgumentScore -> IO ()

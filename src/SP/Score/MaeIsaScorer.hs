@@ -40,7 +40,7 @@ isaOperatorScore paramSet@ParamSet {wm = wm, wa = wa, wc = wc} operatorScore =
 
 -- | Transform an argument score to an argument score with ISA support.
 isaArgumentScores :: ParamSet -> ArgumentScore -> [ArgumentScore]
-isaArgumentScores ParamSet {ta = ta, tc = tc} score relMark = 
+isaArgumentScores ParamSet {ta = ta, tc = tc} score = 
   let relMark = scoreRelation (a1 score) (a2 score)
 
       -- Maps of object cluster references

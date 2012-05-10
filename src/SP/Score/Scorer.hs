@@ -2,7 +2,10 @@
 
 module SP.Score.Scorer where
 
-import qualified Control.Parallel.Strategies as P (rseq, parMap) 
+import Debug.Trace
+import Control.Arrow (second)
+import Control.Parallel.Strategies as P
+import Control.Parallel
 import Data.Function (on)
 import Data.IntMap (IntMap, difference, elems, intersectionWith)
 import qualified Data.HashMap.Lazy as HashMap
@@ -11,57 +14,110 @@ import Data.List.Extras.Argmax (argmaxes)
 import Data.Ord (comparing)
 import SP.Cluster
 import SP.Score.Argument 
-import SP.Score.MaeIsaScorer
 import SP.Score.Math
 import SP.Score.Object
 import SP.Score.Score
+import SP.Debug
 
-operatorScore :: Double -> (ObjectCluster,ObjectCluster) -> OperatorScore
-operatorScore ta (oi,oj) = OperatorScore value Merge objScr magta
-  where
-  stop = null magta || (ocId oi `elem` objIds oj)
-  value = if stop then 0 else tm
-  objScr = objectScore oi oj 
+-- | Evaluate scores in parallel.
+operatorScores :: ParamSet -> [[ObjectCluster]] -> [OperatorScore]
+operatorScores paramSet = let score = operatorScore paramSet
+                              mapP f = withStrategy (parBuffer 80 rseq) . map f
+                          in mapP score . concatMap toTuples
 
-  -- M_a,>0
-  mag0 = bestArgumentScores oi oj --objArgScrs objScr
-  -- M_a,>=ta & M_a,<ta
-  (magta,malta) = partition (\s -> argScrVal s >= ta) mag0
+-- | Convert a list of object clusters to pairs of object clusters.
+toTuples :: [ObjectCluster] -> [(ObjectCluster, ObjectCluster)]
+toTuples []     = []
+toTuples (x:xs) = map (\y -> (x,y)) xs ++ toTuples xs
 
-  isumoi = sumBy i1 mag0
-  isumoj = sumBy i2 mag0
+-- Create an operator score.
+operatorScore :: ParamSet -> (ObjectCluster,ObjectCluster) -> OperatorScore
+operatorScore paramSet@ParamSet {wm = wm, wa = wa, wc = wc, tm = tm} (oi,oj) = 
+  let -- Whether oi and oj are neighbours.
+      areNeighbours = ocId oi `elem` objIds oj
+      
+      -- Object score and argument scores.
+      objScr = objectScore oi oj 
+      argScrs = bestArgumentScores oi oj
+ 
+      -- Merge and ISA argument Scores.
+      isaArgScrs = concatMap (isaArgumentScores paramSet) argScrs
+      scrsFor Merge = filter ((>= tm) . argScrVal) argScrs 
+      scrsFor op    = filter ((== op) . argScrOp) isaArgScrs
 
-  -- Merge score.
-  tm = let tm1 = sumBy (\s -> i1 s * argScrVal s) mag0 / isumoi
-           tm2 = sumBy (\s -> i2 s * argScrVal s) mag0 / isumoj
-       in hmean2 tm1 tm2
-  sm = let sm1 = sumBy (\s -> i1 s * sah s) magta / isumoi
-           sm2 = sumBy (\s -> i2 s * sah s) magta / isumoj
-       in hmean2 sm1 sm2
+      -- Incidence sums.
+      iSum1 = incidenceSum oi
+      iSum2 = incidenceSum oj
 
+      -- Weight mark and tuple of scores and mark.
+      -- fm is a function that calculates an unweighted mark for scores.
+      mark fm w op = let scrs = scrsFor op 
+                     in (scrs, showAltScores paramSet op . prior w . fm $ scrs)
 
--- | Harmonic mean of argument score value and coefficient of variation for 
--- the argument cluster incidences.
-sah :: ArgumentScore -> Double 
-sah score = hmean2 (argScrVal score) (1 - ca2 (i1 score) (i2 score)) 
+      -- Marks.
+      partMark = partScrVal objScr
 
-operatorScores :: Bool -> [[ObjectCluster]] -> [OperatorScore]
-operatorScores isa os = P.parMap P.rseq score mergeTuples
-  where score = if isa then isaOperatorScore paramSet . operatorScore 0.5
-                       else operatorScore 0.5
+      mrgMark = mark (matchMark2 iSum1 iSum2) wm Merge
+      absMark = mark (matchMark2 iSum1 iSum2) wa Abstract
+      chdMark = mark (matchMark1 iSum1 i1) wc Child
+      parMark = mark (matchMark1 iSum2 i2) wc Parent
 
-        paramSet = ParamSet { tm = 0.5, ta = 0.5, tc = 0.5
-                            , wm = 1, wa = 0.8, wc = 1
-                            }
+      -- Elected scores, mark value and operation.
+      (elScrs,elMark) = if useIsa paramSet && partMark < 0.15
+                          then argmax snd [mrgMark, absMark, chdMark, parMark]
+                          else mrgMark
+      elOp = argScrOp $ head elScrs
+  in OperatorScore elMark elOp objScr elScrs
+ 
+-- | Match mark.
+matchMark1 :: Double -> (ArgumentScore -> Double) -> [ArgumentScore] -> Double
+matchMark1 iSum fi = sumBy $ \s -> argScrVal s * fi s / iSum
 
-        mergeTuples = concatMap toTuples os
-        toTuples []     = []
-        toTuples (x:xs) = map (\y -> (x,y)) xs ++ toTuples xs
+matchMark2 :: Double -> Double -> [ArgumentScore] -> Double
+matchMark2 iSum1 iSum2 = let f, g :: ArgumentScore -> Double
+                             f s = argScrVal s * i1 s / iSum1
+                             g s = argScrVal s * i2 s / iSum2
+                             sum = foldl' (\(t,u) s -> (t + f s, u + g s)) (0,0)
+                         in uncurry hmean2 . sum 
 
-maxOperatorScores :: Bool -> [[ObjectCluster]] -> [OperatorScore]
-maxOperatorScores isa = get . argmaxes opScrVal . operatorScores isa
+-- | Helper function to show alternative scores.
+showAltScores :: ParamSet -> Operator -> Double -> Double
+showAltScores params op = if printMarks params then vtrace (show op) else id
+
+-- | Transform an argument score to an argument score with ISA support.
+isaArgumentScores :: ParamSet -> ArgumentScore -> [ArgumentScore]
+isaArgumentScores ParamSet {ta = ta, tc = tc} score = 
+  let relMark = scoreRelation (a1 score) (a2 score)
+
+      -- Maps of object cluster references
+      m = objRefMap score $ a1 score
+      n = objRefMap score $ a2 score
+
+      -- Errors
+      absErr x y   = abs $ x - y
+      matchErrs    = elems $ intersectionWith absErr m n
+      noMatchErrs1 = elems $ difference m n
+      noMatchErrs2 = elems $ difference n m
+
+      -- Marks
+
+      -- Transform errors to marks
+      mark errs = (1 - mean errs + relMark) / 2
+      -- Arg. cluster 1 is parent to arg. cluster 2
+      parMark = mark $ matchErrs ++ noMatchErrs2
+      -- Arg. cluster 2 is parent to arg. cluster 1
+      chdMark = mark $ matchErrs ++ noMatchErrs1
+      -- Arg. clusters 1 and 2 have a common cluster
+      absMark = mark matchErrs
+
+  in [score {argScrVal = parMark, argScrOp = Parent}   | parMark >= tc]
+  ++ [score {argScrVal = chdMark, argScrOp = Child}    | chdMark >= tc]
+  ++ [score {argScrVal = absMark, argScrOp = Abstract} | absMark >= ta]
+
+maxOperatorScores :: ParamSet -> [[ObjectCluster]] -> [OperatorScore]
+maxOperatorScores paramSet = get . argmaxes opScrVal . operatorScores paramSet
   where get []             = []
-        get (score:scores) = score:get (filter (isIndependentOf score) scores)
+        get (scr : scrs) = scr : get (filter (isIndependentOf scr) scrs)
         s1 `isIndependentOf` s2 = ((/=) `on` o1 . objScr) s1 s2 &&
                                   ((/=) `on` o2 . objScr) s1 s2
 

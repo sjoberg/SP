@@ -12,7 +12,7 @@ Library
   Build-Depends:     base >= 4, mtl, mongoDB, parallel, bytestring, bson,
                      list-extras, hashable, unordered-containers, array, 
                      deepseq, regex-compat, MissingH, ConfigFile, containers,
-                     text, stream-fusion, regex-tdfa, regex-base
+                     text, regex-tdfa, regex-base
   Exposed-Modules:   SP.Cluster, SP.Score.Score, SP.Preprocess.Preprocess
                      SP.ByteString, SP.DeepSeq, SP.Preprocess.Compound,
                      SP.Redirect, SP.Config, SP.Bootstrap.MongoDB,
@@ -25,7 +25,7 @@ Executable sp
   Build-Depends:     base >= 4, mtl, mongoDB, parallel, bytestring, bson,
                      list-extras, hashable, unordered-containers, array, 
                      deepseq, regex-compat, MissingH, ConfigFile, containers,
-                     text, stream-fusion, regex-tdfa, regex-base
+                     text, regex-tdfa, regex-base
   Main-is:           SP.hs
   HS-Source-Dirs:    src
 

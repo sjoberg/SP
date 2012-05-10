@@ -9,7 +9,7 @@ import SP.Score.Score
 
 -- | Scores an object cluster.
 objectScore :: ObjectCluster -> ObjectCluster -> ObjectScore
-objectScore oi oj = ObjectScore oi oj value --argumentScores
+objectScore oi oj = ObjectScore oi oj value
   where 
   value = let inc form forms = 1 / (fromIntegral.length) forms * occurence form forms
               occurence f1 = foldl' (\t f2 -> if f1 == f2 then t + 1 else t) 0
@@ -19,7 +19,6 @@ objectScore oi oj = ObjectScore oi oj value --argumentScores
               deltaSum sum f = sum + abs(((-) `on` inc f) formSeqi formSeqj)
               result = 1 - 1 / cardinality formSet * foldl' deltaSum 0 formSet
           in if null formSet then 0 else result
---argumentScores = bestArgumentScores oi oj
 
 -- | Independence of argument scores.
 isIndependentOf :: ObjectScore -> ObjectScore -> Bool
