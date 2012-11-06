@@ -1,0 +1,84 @@
+name:           SP4
+version:        0.1
+cabal-version:  >= 1.2
+build-type:     Simple
+author:         oa
+
+library
+  hs-source-dirs:  src
+  build-depends:   
+                   base >= 4,
+                   mtl,
+                   mongoDB,
+                   parallel,
+                   bytestring,
+                   bson,
+                   list-extras,
+                   hashable,
+                   unordered-containers,
+                   array,
+                   deepseq,
+                   regex-compat,
+                   ConfigFile,
+                   MissingH,
+                   containers,
+                   text,
+                   regex-tdfa,
+                   regex-base
+  ghc-options:     -Wall
+  exposed-modules: 
+                   SP.Boot.MongoDB,
+                   SP.Boot.Preprocess,
+                   SP.Boot.SchmittTrigger,
+                   SP.Boot.Sentence,
+                   SP.Cluster,
+                   SP.Composition.Common,
+                   SP.Composition.Ner,
+                   SP.Composition.Regex,
+                   SP.Config,
+                   SP.Execution.Abstraction,
+                   SP.Execution.Executor,
+                   SP.Execution.Merger,
+                   SP.Execution.Redirect,
+                   SP.Execution.Update,
+                   SP.Math,
+                   SP.Scoring.Argument,
+                   SP.Scoring.Hyponymy,
+                   SP.Scoring.Part,
+                   SP.Scoring.Score,
+                   SP.Scoring.Scorer,
+                   SP.Scoring.UnqualifiedSet
+  other-modules:   
+                   SP.Execution.Isa,
+                   SP.Execution.Flip
+
+executable SP4
+  hs-source-dirs:  src
+  main-is:         Main.hs
+  build-depends:   base >= 4
+  ghc-options:     -Wall -prof -auto-all -rtsopts
+  other-modules:   
+                   SP.Cluster,
+                   SP.Boot.MongoDB,
+                   SP.Config,
+                   SP.Boot.Preprocess,
+                   SP.Boot.SchmittTrigger,
+                   SP.Execution.Update,
+                   SP.Composition.Regex,
+                   SP.Composition.Common,
+                   SP.Execution.Redirect,
+                   SP.Composition.Ner,
+                   SP.Boot.Sentence,
+                   SP.Scoring.Score,
+                   SP.Scoring.Scorer,
+                   SP.Scoring.Argument,
+                   SP.Scoring.Part,
+                   SP.Scoring.Hyponymy,
+                   SP.Execution.Merger,
+                   SP.Execution.Abstraction,
+                   SP.Math,
+                   SP.Scoring.UnqualifiedSet,
+                   SP.Execution.Executor,
+                   SP.Execution.Isa,
+                   SP.Execution.Flip
+

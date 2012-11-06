@@ -1,0 +1,67 @@
+# POS tag regular expression patterns for compounds in English.
+  
+# Replacement POS tag : Min. number of occurrences for use : Regex with characters space separated
+
+NN  : 3 : JJ [ NN NNP NNS ]                                     # yellow pages
+NN  : 2 : NNP ? JJ JJ + NN
+VB  : 1 : TO VB IN TO RP                                        # to spin off
+VBZ : 1 : VBZ ? RB * JJ TO ?                                    # has not financed
+VBP : 1 : VBP ? RB * JJ TO ?                                    # have not financed
+VBD : 1 : VBD ? RB * JJ TO ?                                    # had not financed
+VBZ : 1 : VBZ ? RB * VBN IN +                                   # has been in
+VBP : 1 : VBP ? RB * VBN IN +                                   # have been in
+VBD : 1 : VBD ? RB * VBN IN +                                   # had been in
+VBN : 1 : VBZ ? RB * VBN TO VB                                  # has agreed to buy
+VBN : 1 : VBP ? RB * VBN TO VB                                  # have agreed to buy
+VBP : 1 : VBP ? RB * VBN IN +
+VBZ : 1 : VBZ RB * VBD IN                                       # is also regularly touted as
+VBP : 1 : VBP RB * VBD IN                                       # are also regularly touted as
+VBZ : 1 : VBZ RB * IN ?                                         # is no, is with
+VBP : 1 : VBP RB * IN ?                                         # are no
+VBD : 1 : VBD RB * IN ?                                         # was no, was often in
+VBZ : 1 : VBZ RB * VBG TO VB IN ?                               # is helping to win over
+VBP : 1 : VBP RB * VBG TO VB IN ?                               # are helping to win over
+VBD : 1 : VBD RB * VBG TO VB IN ?                               # was helping to win over
+VB  : 1 : TI RB * VB IN ?                                       # to take over
+VBZ : 1 : VBZ RB VBG ?                                          # makes up, rules out fishing
+VBP : 1 : VBP RB VBG ?                                          # make up, rule out fishing
+VBD : 1 : VBD RB VBG ?                                          # made up, ruled out fishing
+VBG : 1 : RB * VBG IN                                           # looking at
+VBZ : 1 : VBZ RB ? TO RB ? VB VBG                               # plans to start preparing
+VBP : 1 : VBP RB ? TO RB ? VB VBG                               # plan to start preparing
+VBD : 1 : VBD RB ? TO RB ? VB VBG                               # planned to start preparing
+VB  : 1 : TO ? VB VBG                                           # to keep growing
+VBZ : 1 : VBZ RB * IN [ NN NNP NNS JJ ] TO VB  	                # is on track to lift
+VBP : 1 : VBP RB * IN [ NN NNP NNS JJ ] TO VB  	                # are on track to lift
+VBD : 1 : VBD RB * IN [ NN NNP NNS JJ ] TO VB  	                # was on track to lift
+VBD : 1 : VBZ RB * VBN VBG TO VB                                # has been trying to complete
+VBD : 1 : VBP RB * VBN VBG TO VB                                # have been trying to complete
+VBD : 1 : VBD RB * VBN VBG TO VB                                # had been trying to complete
+VBZ : 1 : VBZ RB * IN ( JJ IN ) ?                               # is before, is still not as good as
+VBP : 1 : VBP RB * IN ( JJ IN ) ?                               # are before, are still not as good as
+VBD : 1 : VBD RB * IN ( JJ IN ) ?                               # was before, was still not as good as
+VBZ : 1 : VBZ RB * IN [ IN ( NNS TO VB ) ] ?                    # is in talks to buy, is in talks with, is in
+VBP : 1 : VBP RB * IN [ IN ( NNS TO VB ) ] ?                    # are in talks to buy, are in talks with, are in
+VBD : 1 : VBD RB * IN [ IN ( NNS TO VB ) ] ?                    # was in talks to buy, was in talks with, was in
+VB  : 2 : MD RB * VB IN NNS TO VB                               # may be in discussions to buy
+VB  : 1 : MD RB * VB IN ?                                       # would not result, would result in
+VBZ : 2 : MD RB * VB NNS IN                                     # would put funds from
+VBZ : 2 : MD ? RB * VB TO VB                                    # would continue to voice
+VBZ : 1 : VBZ RB * VBG + IN ?                                   # is currently expanding in
+VBP : 1 : VBP RB * VBG + IN ?                                   # are currently expanding in
+VBD : 1 : VBD RB * VBG + IN ?                                   # was currently expanding in, was not looking at
+VBZ : 1 : VBZ RB * VBN VBN ? TO ? ]                             # has not been disclosed
+VBP : 1 : VBP RB * VBN VBN ? TO ? ]                             # have not been disclosed
+VBD : 1 : VBD RB * VBN VBN ? TO ? ]                             # had not been disclosed
+VBZ : 1 : MD RB * VB [ VBG TO ] ?                               # would have to, would have running
+VBD : 1 : VBD TO RB * VB VBN                    
+NN  : 2 : CD ? [ NNS NN ] ( IN DT ? [ NN NNS ] ) ?              # 100 shoes per man
+NN  : 2 : NN IN [ NN NNS ]                                      # city of clouds
+NNP : 3 : NNP IN [ NN NNS ]                                     # city of clouds
+NNS : 3 : NNS IN [ NN NNS ]                                     # cities of clouds
+VBZ : 1 : VBZ DT ? [ NN NNP NNS JJ ] [ IN TO RP ]               # takes control of, is home to
+VBP : 1 : VBP DT ? [ NN NNP NNS JJ ] [ IN TO RP ]               # take control of, are homes to
+VBD : 1 : VBP DT ? [ NN NNP NNS JJ ] [ IN TO RP ]               # took control of, was home to
+VBZ : 1 : VBZ RB * TO ? VB ? [ NN NNP NNS JJ ] ? [ IN TO RP ] ? # has to take control of, takes control of
+VBP : 1 : VBP RB * TO ? VB ? [ NN NNP NNS JJ ] ? [ IN TO RP ] ? # need not take control of, take control of
+VBD : 1 : VBD RB * TO ? VB ? [ NN NNP NNS JJ ] ? [ IN TO RP ] ? # did take control of, took control of, decided to take control of, decided to invest in

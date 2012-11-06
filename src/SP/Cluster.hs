@@ -1,77 +1,52 @@
-{-# LANGUAGE TypeSynonymInstances #-}
+-- | Module for domain.
 module SP.Cluster where
 
-import Data.Function
-import Data.Hashable
-import Data.Maybe
-import Data.Word
-import SP.ByteString
-import Data.IntMap (IntMap,keys)
-import Data.HashMap.Lazy (HashMap,fromList)
-import Text.Read
+import Data.ByteString.Char8 (ByteString)
+import Data.HashMap.Lazy (HashMap, null)
+import Data.Function (on)
+import Data.Hashable (Hashable, hash)
 
-data Partition = Partition { ptnId :: Id
-                           , ocs :: [ObjectCluster]
-                           , acs :: [ArgumentCluster]
-                           } deriving (Read,Show)
+-- | An object cluster. Represents a set of synonyms.
+data ObjCluster = ObjCluster
+    { objClusterId                  :: Int              -- ^ Id
+    , numSamples                    :: Int              -- ^ Number of samples
+    , parts                         :: [Part]           -- ^ Parts
+    , hypernyms, hyponyms           :: [ObjCluster]     -- ^ ISA relations
+    , parents, children, siblings   :: [ArgCluster]     -- ^ Argument clusters
+    }
 
-data ObjectCluster = ObjectCluster { ocId :: Id 
-                                   , parts :: [Part]
-                                   , pars, chdn, sbls :: IncidenceList
-                                   , samples :: Double
-                                   , incSum :: Double
-                                   } deriving (Read,Show)
+-- | An argument cluster. Represents a set of arguments.
+data ArgCluster = ArgCluster
+    { argClusterId                  :: Int                          -- ^ Id
+    , frequency                     :: Double                       -- ^ Frequency of use
+    , numArgs                       :: Int                          -- ^ Number of arguments
+    , isaParents, isaChildren       :: [ArgCluster]                 -- ^ ISA relations
+    , objFrequency, subObjFrequency :: HashMap Int Double           -- ^ Object frequency
+    , relFrequency, subRelFrequency :: HashMap ByteString Double    -- ^ Relation frequency
+    }
 
-data Part = Part { partId, artId, sntId :: Id
-                 , form, pos, lemma, ner, text :: ByteString
-                 } deriving (Read,Show)
-
-data ArgumentCluster = ArgumentCluster { acId :: Id
-                                       , parMap, chdMap :: ObjectMap
-                                       , relMap :: RelationMap
-                                       , numArgs :: Double}
-                     | D2ArgumentCluster { acFst, acSnd :: ArgumentCluster
-                                         } deriving (Read,Show)
-
-instance Eq Partition where (==) = (==) `on` ptnId
-instance Eq ObjectCluster where (==) = (==) `on` ocId
+-- | A part. Represents a token with annotations.
+data Part = Part
+    { partId                        :: Int          -- ^ Id
+    , documentId, sentenceId        :: Int          -- ^ Location
+    , lemma, pos, word, ner         :: ByteString   -- ^ Token annotations
+    }
+    
+instance Eq ObjCluster where (==) = (==) `on` objClusterId
+instance Eq ArgCluster where (==) = (==) `on` argClusterId
 instance Eq Part where (==) = (==) `on` partId
-instance Hashable ObjectCluster where hash = ocId
-instance Hashable Partition where hash = ptnId
 
-instance Eq ArgumentCluster where
-  D2ArgumentCluster x y == D2ArgumentCluster z w = x == z && y == w
-  ArgumentCluster {acId = id1} == ArgumentCluster {acId = id2} = id1 == id2
-  _ == _ = False
+instance Hashable ObjCluster where hash = objClusterId
+instance Hashable ArgCluster where hash = argClusterId
 
-instance Hashable ArgumentCluster where 
-  hash (D2ArgumentCluster x y) = acId x `combine` acId y
-  hash ArgumentCluster {acId = acId} = acId
+-- | Get all argument clusters from an object cluster.
+allArgClusters :: ObjCluster -> [ArgCluster]
+allArgClusters c = parents c ++ children c ++ siblings c
 
--- For serialization.
-instance (Read k, Hashable k, Ord k, Read a) => Read (HashMap k a) where
-  readPrec = parens $ prec 10 $ do
-    Ident "fromList" <- lexP
-    xs <- readPrec
-    return (fromList xs)
-  readListPrec = readListPrecDefault
+-- | True if the argument cluster only points to a nearest neighbour.
+nearestNeighbour :: ArgCluster -> Bool
+nearestNeighbour = Data.HashMap.Lazy.null . subObjFrequency
 
-type Id = Int
-type Relation = ByteString
-type Incidence = Double
-type IncidenceList = [(ArgumentCluster, Incidence)]
-type ObjectMap = IntMap Incidence
-type RelationMap = HashMap Relation Incidence
-
-parObjIds, chdObjIds, sblObjIds, objIds :: ObjectCluster -> [Id]
-parObjIds = concatMap (keys . parMap . fst) . pars 
-chdObjIds = concatMap (keys . chdMap . fst) . chdn
-sblObjIds = concatMap (keys . chdMap . acSnd . fst) . sbls
-objIds o  = parObjIds o ++ chdObjIds o ++ sblObjIds o
-
--- Sum of incidences of argument clusters in an object cluster.
-incidenceSum :: ObjectCluster -> Double
-incidenceSum o = sum . snd . unzip $ pars o ++ chdn o ++ sbls o
-
-partTexts :: ObjectCluster -> [String]
-partTexts =  map (unpack . text) . parts
+-- | The most distant object cluster in the argument cluster.
+endObjMap :: ArgCluster -> HashMap Int Double
+endObjMap x = if nearestNeighbour x then objFrequency x else subObjFrequency x
