@@ -3,6 +3,9 @@ module SP.Scoring.Scorer where
 
 import Control.Parallel.Strategies (parMap, rseq)
 import Data.HashMap.Lazy (keys)
+import Data.HashSet (HashSet, empty)
+import Data.List (foldl')
+import Data.List.Extras.Argmax (argmaxes)
 import SP.Cluster
 import SP.Config (Config, tsyn, useHyponymys)
 import SP.Scoring.Argument (filterMergers, scores)
@@ -10,13 +13,22 @@ import SP.Scoring.Hyponymy (frequencySum,hyponymize,toScoreSet)
 import SP.Scoring.Score
 import SP.Scoring.Part (scoreParts)
 import SP.Scoring.UnqualifiedSet (sampleSet)
-import Data.HashSet (HashSet, empty)
+
+-- | Greedy align of scores. Heuristically finds the best combination of scores. 
+alignBest :: [Score] -> [Score]
+alignBest = foldIndependent . argmaxes scoreValue
+  where
+    foldIndependent = foldl' (\r n -> if all (unrelated n) r then r else n:r) []
+    unrelated x y = not $ objLeft x `areRelated` objLeft y ||
+                          objLeft x `areRelated` objRight y ||
+                          objRight x `areRelated` objLeft y ||
+                          objRight x `areRelated` objRight y
 
 -- | Evaluates scores in parallel.
-mkScores :: Config -> [ObjCluster] -> [Score]
-mkScores cfg xs = parMap rseq (uncurry $ score cfg unqlfSet) . pair $ xs
+mkScores :: Config -> [[ObjCluster]] -> [Score]
+mkScores cfg xs = parMap rseq (uncurry $ score cfg unqlfSet) . concatMap pair $ xs
   where
-    unqlfSet = if useHyponymys cfg then sampleSet 1 xs else empty
+    unqlfSet = if useHyponymys cfg then sampleSet 1 (concat xs) else empty
 
 -- | Create pairs of object clusters to score.
 pair :: [ObjCluster] -> [(ObjCluster, ObjCluster)]

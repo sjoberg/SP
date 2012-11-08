@@ -10,8 +10,8 @@ data Trigger = Trigger State Double Double
 data State = High | Low
 
 -- | Update the state of a trigger.
-updateState :: Double -> Trigger -> Trigger
-updateState input (Trigger _ high low) = Trigger state high low
+updateState :: Trigger -> Double -> Trigger
+updateState (Trigger _ high low) input = Trigger state high low
   where
     state = if input >= high then High else Low
 

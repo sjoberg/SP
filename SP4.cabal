@@ -6,8 +6,7 @@ author:         oa
 
 library
   hs-source-dirs:  src
-  build-depends:   
-                   base >= 4,
+  build-depends:   base >= 4,
                    mtl,
                    mongoDB,
                    parallel,
@@ -55,7 +54,24 @@ library
 executable SP4
   hs-source-dirs:  src
   main-is:         Main.hs
-  build-depends:   base >= 4
+  build-depends:   base >= 4,
+                   mtl,
+                   mongoDB,
+                   parallel,
+                   bytestring,
+                   bson,
+                   list-extras,
+                   hashable,
+                   unordered-containers,
+                   array,
+                   deepseq,
+                   regex-compat,
+                   ConfigFile,
+                   MissingH,
+                   containers,
+                   text,
+                   regex-tdfa,
+                   regex-base
   ghc-options:     -Wall -prof -auto-all -rtsopts
   other-modules:   
                    SP.Cluster,
@@ -81,4 +97,3 @@ executable SP4
                    SP.Execution.Executor,
                    SP.Execution.Isa,
                    SP.Execution.Flip
-
