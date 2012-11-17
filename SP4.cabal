@@ -1,12 +1,13 @@
 name:           SP4
 version:        0.1
-cabal-version:  >= 1.2
+cabal-version:  >= 1.8
 build-type:     Simple
 author:         oa
 
 library
   hs-source-dirs:  src
-  build-depends:   base >= 4,
+  build-depends:   
+                   base >= 4,
                    mtl,
                    mongoDB,
                    parallel,
@@ -25,36 +26,37 @@ library
                    regex-tdfa,
                    regex-base
   ghc-options:     -Wall
-  exposed-modules: 
+  exposed-modules:  
                    SP.Boot.MongoDB,
                    SP.Boot.Preprocess,
                    SP.Boot.SchmittTrigger,
                    SP.Boot.Sentence,
+                   SP.Boot.Trim,
                    SP.Cluster,
                    SP.Composition.Common,
                    SP.Composition.Ner,
                    SP.Composition.Regex,
                    SP.Config,
-                   SP.Execution.Abstraction,
-                   SP.Execution.Executor,
-                   SP.Execution.Merger,
-                   SP.Execution.Redirect,
-                   SP.Execution.Update,
                    SP.Math,
+                   SP.Reduction.Abstraction,
+                   SP.Reduction.Isa,
+                   SP.Reduction.Merger,
+                   SP.Reduction.Reducer,
+                   SP.Reduction.Turnable,
+                   SP.Reduction.Update,
                    SP.Scoring.Argument,
                    SP.Scoring.Hyponymy,
                    SP.Scoring.Part,
                    SP.Scoring.Score,
                    SP.Scoring.Scorer,
-                   SP.Scoring.UnqualifiedSet
-  other-modules:   
-                   SP.Execution.Isa,
-                   SP.Execution.Flip
+                   SP.Scoring.UnqualifiedSet,
+                   SP.Trace
 
 executable SP4
   hs-source-dirs:  src
   main-is:         Main.hs
-  build-depends:   base >= 4,
+  build-depends:   
+                   base >= 4,
                    mtl,
                    mongoDB,
                    parallel,
@@ -72,28 +74,50 @@ executable SP4
                    text,
                    regex-tdfa,
                    regex-base
-  ghc-options:     -Wall -prof -auto-all -rtsopts
+  ghc-options:     -Wall -threaded -rtsopts=all
   other-modules:   
-                   SP.Cluster,
                    SP.Boot.MongoDB,
-                   SP.Config,
                    SP.Boot.Preprocess,
                    SP.Boot.SchmittTrigger,
-                   SP.Execution.Update,
-                   SP.Composition.Regex,
-                   SP.Composition.Common,
-                   SP.Execution.Redirect,
-                   SP.Composition.Ner,
                    SP.Boot.Sentence,
+                   SP.Boot.Trim,
+                   SP.Cluster,
+                   SP.Composition.Common,
+                   SP.Composition.Ner,
+                   SP.Composition.Regex,
+                   SP.Config,
+                   SP.Math,
+                   SP.Reduction.Abstraction,
+                   SP.Reduction.Isa,
+                   SP.Reduction.Merger,
+                   SP.Reduction.Reducer,
+                   SP.Reduction.Turnable,
+                   SP.Reduction.Update,
+                   SP.Scoring.Argument,
+                   SP.Scoring.Hyponymy,
+                   SP.Scoring.Part,
                    SP.Scoring.Score,
                    SP.Scoring.Scorer,
-                   SP.Scoring.Argument,
-                   SP.Scoring.Part,
-                   SP.Scoring.Hyponymy,
-                   SP.Execution.Merger,
-                   SP.Execution.Abstraction,
-                   SP.Math,
                    SP.Scoring.UnqualifiedSet,
-                   SP.Execution.Executor,
-                   SP.Execution.Isa,
-                   SP.Execution.Flip
+                   SP.Trace
+
+test-suite SimpleMerge
+  type:            exitcode-stdio-1.0
+  x-uses-tf:       true
+  build-depends:   
+                   base >= 4,
+                   HUnit >= 1.2 && < 2,
+                   QuickCheck >= 2.4,
+                   test-framework >= 0.4.1,
+                   test-framework-quickcheck2,
+                   test-framework-hunit,
+                   SP4,
+                   bytestring,
+                   hashable,
+                   mongoDB,
+                   unordered-containers
+  hs-source-dirs:  tests
+  ghc-options:     -Wall -rtsopts
+  main-is:         AllTests.hs
+  other-modules:   Constructors
+

@@ -1,6 +1,7 @@
 -- | Module for calculating argument scores.
 module SP.Scoring.Argument (scores, meanError, filterMergers) where
 
+import Debug.Trace
 import Data.Hashable (Hashable)
 import Data.HashMap.Lazy (HashMap, elems, intersectionWith)
 import Data.List (foldl', sortBy)
@@ -48,11 +49,12 @@ toScores xs = align . map (uncurry score) . pair xs
 
 -- | Greedy align of scores. Heuristically finds the best combination of scores. 
 align :: [ArgScore] -> [ArgScore]
-align = foldIndependent . sortByScore
+align = foldIndependent . sortByScore . filter ((>0) . argScoreValue)
   where 
     sortByScore = sortBy (comparing $ negate . argScoreValue)
-    foldIndependent = foldl' (\r n -> if all (independent n) r then r else n:r) []
+    foldIndependent = foldl' (\r n -> if all (independent n) r then n:r else r) []
 
 -- | Calculate combinations of argument clusters to score.
 pair :: [ArgCluster] -> [ArgCluster] -> [(ArgCluster, ArgCluster)]
 pair xs ys = concatMap (\x -> map (\y -> (x,y)) ys) xs
+

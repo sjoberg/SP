@@ -28,6 +28,8 @@ bootstrap callback = do
         collection = u"reuters.mergers"
         sel = [u"status" =: u"ok", u"sentences" =: [u"$exists" =: True]]
         get = rest =<< find (select sel collection) {sort = order}
+    -- Ensure index, since we want sorting and might have large databases.
+    _ <- access pipe master (u"articles") (ensureIndex $ index collection order)
     e <- access pipe master (u"articles") (get >>= mkDomain config callback)
     close pipe
     print e

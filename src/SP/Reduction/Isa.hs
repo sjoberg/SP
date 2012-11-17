@@ -1,16 +1,16 @@
 -- | Update instructions for parent and child operators.
-module SP.Execution.Isa where
+module SP.Reduction.Isa where
 
 import SP.Cluster
-import SP.Execution.Merger (merge)
-import SP.Execution.Update
-import SP.Execution.Flip
+import SP.Reduction.Merger (merge)
+import SP.Reduction.Update
+import SP.Reduction.Turnable
 import SP.Scoring.Score
 import Data.HashMap.Lazy (HashMap, fromList, lookupDefault)
 
 -- | Update for the parent operator.
 parent :: Score -> Update
-parent = child . flipScore
+parent = child . turn
 
 -- | Update for the child operator.
 child :: Score -> Update
@@ -22,7 +22,7 @@ child score@Score {objLeft = x, objRight = y, argScores = scores} = emptyUpdate
     -- Child.
     x' = x {hypernyms = y':hypernyms x}
     -- Parent.
-    yUpdate = merge (flipScore score)
+    yUpdate = merge (turn score)
     z = snd . head . objTuples $ yUpdate
     y' = z {hyponyms = x':hyponyms y}
     argTuples' = concatMap (scoreToTuples $ fromList . argTuples $ yUpdate) scores

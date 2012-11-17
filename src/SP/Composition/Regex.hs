@@ -17,7 +17,7 @@ import SP.Boot.Sentence (toSentences)
 import SP.Cluster
 import SP.Config
 import SP.Composition.Common
-import SP.Execution.Update
+import SP.Reduction.Update
 
 -- | Convert a sentence to a ByteString of 1-char POS tag representations.
 sentenceToPosStream :: HashMap ByteString ByteString -> [ObjCluster] -> ByteString
@@ -90,7 +90,7 @@ tupleMatch tuples (snt,stream) = compoundPairs
                $ concatMap expandMatchPair matchPairs
     toCompoundPair ((newPos,_,_),range) = (slice range snt, newPos)
     -- Predicate function for only allowing clusters with "other" ner tags.
-    allow (xs,_) = length xs > 1 && all ((== pack "O") . (ner . head . parts)) xs
+    allow (xs,_) = length xs > 1 && all ((== pack "O") . ner . head . parts) xs
     -- Create compound pairs.
     compoundPairs = filter allow $ map toCompoundPair (bestMatchElems matchElems [])
 
@@ -136,6 +136,8 @@ mkPosCompoundPart compParts compPos = (head compParts)
 -- | Make a pos composition.
 mkPosComposition :: ([ObjCluster],ByteString) -> Update
 mkPosComposition (objClusters, compPos) = emptyUpdate
-    {newObjClusters = [mkCompoundObjCluster compPart objClusters]}
+    {objTuples = map (flip (,) compCluster) objClusters}
   where
+    -- Compound cluster and part.
+    compCluster = mkCompoundObjCluster compPart objClusters
     compPart = mkPosCompoundPart (concatMap parts objClusters) compPos

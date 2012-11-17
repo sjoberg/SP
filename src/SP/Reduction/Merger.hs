@@ -1,9 +1,9 @@
 -- | Module for building merger updates from scores.
-module SP.Execution.Merger where
+module SP.Reduction.Merger where
 
 import SP.Cluster
 import SP.Scoring.Score
-import SP.Execution.Update
+import SP.Reduction.Update
 import Data.Hashable (Hashable)
 import Data.HashMap.Lazy (HashMap, union, difference, unionWith)
 import qualified Data.HashMap.Lazy as HashMap (map)
@@ -54,8 +54,8 @@ updateMap :: (Eq k, Hashable k) => ArgCluster -> ArgCluster -> (ArgCluster -> Ha
           -> HashMap k Double
 updateMap x y f = ux `union` uy `union` m
   where
-    nax = fromIntegral (numArgs x) -- Number of arguments for x
-    nay = fromIntegral (numArgs y) -- Number of arguments for y
+    -- Number of arguments for x and y.
+    (nax, nay) = let na = fromIntegral . numArgs in (na x, na y)
     -- Map of unmerged property values from x and y.
     ux = HashMap.map (* (nax / (nax + nay))) $ difference (f x) (f y)
     uy = HashMap.map (* (nay / (nax + nay))) $ difference (f y) (f x)

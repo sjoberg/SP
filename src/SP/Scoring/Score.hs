@@ -5,19 +5,19 @@ import Data.List (intersect)
 import SP.Cluster
 
 data Score = Score
-    { objLeft, objRight :: ObjCluster   -- ^ Object clusters for the score.
+    { scoreValue        :: Double       -- ^ Score value.
     , scoreOp           :: Operator     -- ^ Score operator.
-    , scoreValue        :: Double       -- ^ Score value.
+    , objLeft, objRight :: ObjCluster   -- ^ Object clusters for the score.
     , argScores         :: [ArgScore]   -- ^ Argument scores.
-    }
+    } deriving (Show)
 
 data ArgScore = ArgScore
     { argLeft, argRight :: ArgCluster   -- ^ Argument clusters.
     , argScoreOp        :: Operator     -- ^ Operator.
     , argScoreValue     :: Double       -- ^ Score value.
-    }
+    } deriving (Show)
 
-data Operator = Merge | Abstract | Parent | Child deriving Eq
+data Operator = Merge | Abstract | Parent | Child deriving (Eq, Show)
 
 class Scorable s where independent :: s -> s -> Bool
 

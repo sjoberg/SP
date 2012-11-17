@@ -1,9 +1,9 @@
 -- | Execution of abstract operations. TODO Check math.
-module SP.Execution.Abstraction where
+module SP.Reduction.Abstraction where
 
 import SP.Cluster
-import SP.Execution.Merger (mergeArg, ns, updateMap)
-import SP.Execution.Update
+import SP.Reduction.Merger (mergeArg, ns, updateMap)
+import SP.Reduction.Update
 import SP.Scoring.Score
 import Data.List ((\\), intersect, nub)
 

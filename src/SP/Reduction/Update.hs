@@ -1,5 +1,5 @@
 -- | Updates to be used for operator execution.
-module SP.Execution.Update where
+module SP.Reduction.Update where
 
 import Data.HashMap.Lazy (HashMap, fromList)
 import SP.Cluster
@@ -9,7 +9,7 @@ data Update = Update
     { newObjClusters    :: [ObjCluster]                 -- ^ New object clusters.            
     , objTuples         :: [(ObjCluster, ObjCluster)]   -- ^ Object cluster tuples.
     , argTuples         :: [(ArgCluster, ArgCluster)]   -- ^ Argument cluster tuples.
-    }
+    } deriving (Show)
     
 -- | Empty update constructor.
 emptyUpdate :: Update
@@ -31,6 +31,6 @@ mergeUpdate x y = Update
     , argTuples = argTuples x ++ argTuples y
     }
 
--- | Fold updates.
+-- | Merge a list of updates.
 foldUpdates :: [Update] -> Update
 foldUpdates = foldl1 mergeUpdate

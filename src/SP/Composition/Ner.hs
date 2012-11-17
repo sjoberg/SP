@@ -1,35 +1,26 @@
 -- | Module for NER composition.
 module SP.Composition.Ner (mkNerCompounds) where
 
-import Debug.Trace (trace)
-import Data.ByteString.Char8 (intercalate, pack, unpack)
+import Data.ByteString.Char8 (intercalate, pack)
 import Data.Function (on)
-import Data.List (groupBy, intersperse)
+import Data.List (groupBy)
 import SP.Cluster
 import SP.Boot.Sentence (toSentences)
 import SP.Composition.Common (mkCompoundObjCluster)
-import SP.Execution.Update
+import SP.Reduction.Update
 
 -- | Make NER compounds.
 mkNerCompounds :: [ObjCluster] -> Update
-mkNerCompounds = foldUpdates . map toUpdate . dtrace (("Biff" ++) . show . length) . groups
+mkNerCompounds = foldUpdates . map toUpdate . groups
 
-dtrace :: (a -> String) -> a -> a
-dtrace f x = trace (f x) x
-    
 -- | Make an update out of a group
 toUpdate :: [ObjCluster] -> Update
 toUpdate g = let objCluster = mkCompoundObjCluster (mkNerCompoundPart g) g
-             in emptyUpdate { objTuples = map (flip (,) objCluster) g
-                            , newObjClusters = [objCluster] 
-                            }
+             in emptyUpdate {objTuples = map (flip (,) objCluster) g}
 
 -- | Group by NER tag, for all sentences.
 groups ::  [ObjCluster] -> [[ObjCluster]]
-groups = filter ((> 1) .length) .  filter isntMisc . concatMap groupByNer . {-dtrace (concat . intersperse "\n" . map toSnt) .-} toSentences
-  {-where
-    toSnt :: [ObjCluster] -> String
-    toSnt = concat . intersperse " " . map (unpack . ner . head . parts)-}
+groups = filter ((> 1) .length) .  filter isntMisc . concatMap groupByNer . toSentences
 
 -- | Group by NER tag, for one sentence.
 groupByNer :: [ObjCluster] -> [[ObjCluster]]

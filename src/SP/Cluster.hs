@@ -13,7 +13,7 @@ data ObjCluster = ObjCluster
     , parts                         :: [Part]           -- ^ Parts
     , hypernyms, hyponyms           :: [ObjCluster]     -- ^ ISA relations
     , parents, children, siblings   :: [ArgCluster]     -- ^ Argument clusters
-    }
+    } deriving (Show)
 
 -- | An argument cluster. Represents a set of arguments.
 data ArgCluster = ArgCluster
@@ -23,14 +23,14 @@ data ArgCluster = ArgCluster
     , isaParents, isaChildren       :: [ArgCluster]                 -- ^ ISA relations
     , objFrequency, subObjFrequency :: HashMap Int Double           -- ^ Object frequency
     , relFrequency, subRelFrequency :: HashMap ByteString Double    -- ^ Relation frequency
-    }
+    } deriving (Show)
 
 -- | A part. Represents a token with annotations.
 data Part = Part
     { partId                        :: Int          -- ^ Id
     , documentId, sentenceId        :: Int          -- ^ Location
     , lemma, pos, word, ner         :: ByteString   -- ^ Token annotations
-    }
+    } deriving (Show)
     
 instance Eq ObjCluster where (==) = (==) `on` objClusterId
 instance Eq ArgCluster where (==) = (==) `on` argClusterId
