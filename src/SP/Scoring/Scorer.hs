@@ -2,7 +2,6 @@
 module SP.Scoring.Scorer where
 
 import Control.Parallel.Strategies (parMap, rseq)
-import Data.HashMap.Lazy (keys)
 import Data.HashSet (HashSet, empty)
 import Data.List (foldl')
 import Data.List.Extras.Argmax (argmaxes)
@@ -36,18 +35,9 @@ pair :: [ObjCluster] -> [(ObjCluster, ObjCluster)]
 pair []     = []
 pair (x:xs) = [(x,y) | y <- xs, not (areRelated x y)] ++ pair xs
 
--- | True if the supplied object clusters are related.
+-- | True if the supplied object clusters are ISA related.
 areRelated :: ObjCluster -> ObjCluster -> Bool
-areRelated x y = any (== objClusterId x) yHyponymys -- (yObjs ++ ySubObjs) ||
-                 --any (== objClusterId y) (xObjs ++ xSubObjs) 
-                 -- Hyponymys exist symmetrically, no need to check hyponyms twice.
-  where
-    {- propKeys f c = concatMap (keys . f) (children c) --(allArgClusters c) 
-    xObjs = propKeys objFrequency x
-    yObjs = propKeys objFrequency y
-    xSubObjs = propKeys subObjFrequency x
-    ySubObjs = propKeys subObjFrequency y -}
-    yHyponymys = map objClusterId (hypernyms y ++ hyponyms y)
+areRelated x y = any (== objClusterId x) (hypernyms y ++ hyponyms y)
 
 -- | Create a score between two object clusters.
 score :: Config -> HashSet Int -> (ObjCluster,ObjCluster) -> Score

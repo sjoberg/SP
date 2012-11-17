@@ -22,7 +22,7 @@ abstract Score {objLeft = x, objRight = y, argScores = scores} = Update
           , numSamples = numSamples x + numSamples y
           , parts = parts x ++ parts y
           , hypernyms = commonHypernyms
-          , hyponyms = [x,y]
+          , hyponyms = map objClusterId [x,y]
           , parents = unused parents ++ new parents
           , children = unused children ++ new children
           , siblings = unused siblings ++ new siblings
@@ -51,7 +51,7 @@ abstractArg nsx nsy ArgScore {argLeft = x, argRight = y} = [(x,x'),(y,y'),(z,z)]
         , frequency = (frequency x * nsx + frequency y * nsy) / (nsx + nsy)
         , numArgs = numArgs x + numArgs y
         , isaParents = commonParents
-        , isaChildren = [x,y]
+        , isaChildren = map argClusterId [x,y]
         , objFrequency = updateMap x y objFrequency
         , relFrequency = updateMap x y relFrequency
         , subObjFrequency = updateMap x y subObjFrequency

@@ -20,11 +20,11 @@ child score@Score {objLeft = x, objRight = y, argScores = scores} = emptyUpdate
     }
   where
     -- Child.
-    x' = x {hypernyms = y':hypernyms x}
+    x' = x {hypernyms = objClusterId y' : hypernyms x}
     -- Parent.
     yUpdate = merge (turn score)
     z = snd . head . objTuples $ yUpdate
-    y' = z {hyponyms = x':hyponyms y}
+    y' = z {hyponyms = objClusterId x' : hyponyms y}
     argTuples' = concatMap (scoreToTuples $ fromList . argTuples $ yUpdate) scores
     -- All the unused argument clusters in the child object cluster will
     -- function as merged clusters. No change is needed to them. Each time
@@ -37,8 +37,8 @@ child score@Score {objLeft = x, objRight = y, argScores = scores} = emptyUpdate
 scoreToTuples :: HashMap ArgCluster ArgCluster -> ArgScore -> [(ArgCluster,ArgCluster)]
 scoreToTuples argMap ArgScore {argLeft = x, argRight = y, argScoreOp = op} = case op of
     Merge -> [(x,z {frequency = frequency x}),(y,z)]
-    Child -> let x' = x {isaParents = y':isaParents x} -- Has correct frequency.
-                 y' = z {isaChildren = x':isaChildren z}
+    Child -> let x' = x {isaParents = argClusterId y' : isaParents x} -- Has correct frequency.
+                 y' = z {isaChildren = argClusterId x' : isaChildren z}
              in [(x,x'),(y,y')]
     _ -> error "Invalid operator type during ISA execution."
   where

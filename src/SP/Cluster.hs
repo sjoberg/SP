@@ -11,7 +11,7 @@ data ObjCluster = ObjCluster
     { objClusterId                  :: Int              -- ^ Id
     , numSamples                    :: Int              -- ^ Number of samples
     , parts                         :: [Part]           -- ^ Parts
-    , hypernyms, hyponyms           :: [ObjCluster]     -- ^ ISA relations
+    , hypernyms, hyponyms           :: [Int]            -- ^ ISA relations
     , parents, children, siblings   :: [ArgCluster]     -- ^ Argument clusters
     } deriving (Show)
 
@@ -20,7 +20,7 @@ data ArgCluster = ArgCluster
     { argClusterId                  :: Int                          -- ^ Id
     , frequency                     :: Double                       -- ^ Frequency of use
     , numArgs                       :: Int                          -- ^ Number of arguments
-    , isaParents, isaChildren       :: [ArgCluster]                 -- ^ ISA relations
+    , isaParents, isaChildren       :: [Int]                        -- ^ ISA relations
     , objFrequency, subObjFrequency :: HashMap Int Double           -- ^ Object frequency
     , relFrequency, subRelFrequency :: HashMap ByteString Double    -- ^ Relation frequency
     } deriving (Show)
